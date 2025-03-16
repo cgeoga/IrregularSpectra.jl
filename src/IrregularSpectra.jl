@@ -1,0 +1,3 @@
+module IrregularSpectra
+
+end 
