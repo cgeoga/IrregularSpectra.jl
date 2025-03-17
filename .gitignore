@@ -1,3 +1,4 @@
+*.png
 *.csv
 *.jld
 *.h5
@@ -23,3 +24,4 @@ dev*.jl
 *eps-converted-to.pdf
 Manifest.toml
 *.DS_Store
+!quicksixel_est_demo.png

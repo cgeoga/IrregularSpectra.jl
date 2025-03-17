@@ -2,3 +2,11 @@ name = "IrregularSpectra"
 uuid = "44cbfef1-da7d-499c-871f-40d6f2b94496"
 authors = ["Chris Geoga <geoga@wisc.edu>", "Paul Beckman <paul.beckman@cims.nyu.edu>"]
 version = "0.1.0"
+
+[deps]
+Bessels = "0e736298-9ec6-45e8-9647-e4fc86a2fe38"
+FINUFFT = "d8beea63-0952-562e-9c6a-8e8ef7364055"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+LowRankApprox = "898213cb-b102-5a47-900c-97e73b919f73"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+QuadGK = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
