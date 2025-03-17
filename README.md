@@ -35,7 +35,7 @@ From here, the estimator is easy to obtain: we simply pick the frequencies at
 which we'd like to estimate the SDF, select the window function we wish to use
 (and it is easy to bring your own!), and use the `estimate_sdf` function. The
 choice `20.0` is the shape parameter with the Kaiser window, and for reference
-on the domain of `[a, b] = [0, 1]` that gives a main lobe half-bandwidth of
+on the domain of `[a, b] = [-1, 1]` that gives a main lobe half-bandwidth of
 `20/(2*pi)`, which is about `3.2`. The function `estimate_sdf`, if given
 multiple iid samples as columns in `sims`, will average the multiple estimates.
 ```julia
