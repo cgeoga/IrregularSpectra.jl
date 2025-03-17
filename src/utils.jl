@@ -11,9 +11,9 @@ end
 
 maximum_neighbor_dist(pts::Vector{Float64}) = maximum(diff(sort(pts)))
 
-function simulate_process(pts, kernel, m)
+function simulate_process(pts, kernel, m; rng=Random.default_rng())
   K = [kernel(x, y) for x in pts, y in pts]
   L = cholesky!(Symmetric(K)).L
-  L*randn(length(pts), m)
+  L*randn(rng, length(pts), m)
 end
 

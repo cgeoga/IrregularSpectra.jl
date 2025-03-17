@@ -128,7 +128,6 @@ This alternative estimator workflow is demonstrated as a plain code file in
 This software library is under very active development. An incomplete list of
 features to expect in the near future:
 
-- We definitely should and will add tests.
 - A heuristic tool for handling potentially gappy one-dimensional domains that
   adaptively splits the data domain into disjoint segments based on large gaps
   and balancing the tradeoff between reducing the norm of the weights and the
