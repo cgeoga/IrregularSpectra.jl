@@ -25,6 +25,10 @@ IrregularSpectra.FourierTransform{G}(g)(ω::Float64)::ComplexF64
 
 where the latter method means that the struct wrapper `IrregularSpectra.FourierTransform(g)`
 has a method to provide that Fourier transform.
+
+**See also:** the function `matern_frequency_selector` takes points and a window
+function and returns both weights and the highest ``safe" frequency to estimate based 
+on a user-provided tolerance for the relative size in aliasing bias.
 """
 function window_quadrature_weights(pts::Vector{Float64}, g; Ω=default_Ω(pts, g), verbose=true)
   (a, b) = window_support(g)
@@ -53,8 +57,8 @@ estimator. `Ω` is the resolution maximum for the window quadrature weights.
 As of now, this function does not check the frequencies you are estimating compared
 to the highest resolvable frequency Ω! A safer interface is under development.
 """
-function estimate_sdf(pts::Vector{Float64}, data, g, frequencies; Ω=default_Ω(pts, g))
-  wts = window_quadrature_weights(pts, g; Ω=Ω)
+function estimate_sdf(pts::Vector{Float64}, data, g, frequencies; 
+                      Ω=default_Ω(pts, g), wts=window_quadrature_weights(pts, g; Ω=Ω))
   fs  = NUFFT3(pts, frequencies.*(2*pi), true, 1e-15)
   out = zeros(ComplexF64, length(frequencies), size(data, 2))
   mul!(out, fs, complex(Diagonal(wts)*data))

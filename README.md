@@ -16,7 +16,7 @@ convenience and for use in some upcoming heuristic tools for selecting the
 maximum resolved frequency Ω, which is a central concept in the paper and
 directly controls the tradeoff between how far into the tails of the SDF you can
 estimate and the size of the bias.
-```{julia}
+```julia
 using IrregularSpectra
 
 # Generate n uniform points on [a, b]:
@@ -38,7 +38,7 @@ choice `20.0` is the shape parameter with the Kaiser window, and for reference
 on the domain of `[a, b] = [0, 1]` that gives a main lobe half-bandwidth of
 `20/(2*pi)`, which is about `3.2`. The function `estimate_sdf`, if given
 multiple iid samples as columns in `sims`, will average the multiple estimates.
-```{julia}
+```julia
 Ω         = 0.5*n/(4*(b-a)) # half of theoretical nyquist max
 est_freqs = range(0.0, Ω/2, length=1000)
 window    = Kaiser(20.0, a=a, b=b)
@@ -61,19 +61,66 @@ The script document in `./examples/simple_demo.jl` just uses printing as a
 diagnostic, but here is a visual one where we estimate at more frequencies (this
 plot was made with my own wrapper of Gnuplot that uses sixel output, but
 substitute with your preferred plotting tool):
-```{julia}
+```julia
 truth = IrregularSpectra.matern_sdf.(many_est_freqs, Ref((1.0, 0.1, 0.75)))
 est1  = estimate_sdf(pts, sims[:,1], window, est_freqs; Ω=Ω) 
 gplot(est_freqs, est1, est, truth, ylog=true)
 ```
+
 <p align="center">
     <img src="quicksixel_est_demo.png" alt="A sample estimator plot" width=600>
 </p>
+
 This plot shows the estimator from a single sample (purple), the average
 estimate from `m=500` replicates is shown in blue (indicating that the bias in
 the estimate is minimal compared to its expected value), and the true SDF is
 shown in green.
 
+# Experimental features/interfaces
+
+The rate at which aliasing bias can dominate an estimate for the SDF depends
+strongly on several factors. The primary two factors are the norm of the weights
+and the rate at which the true SDF decays. Naturally in real applications of
+nonparametric estimation we don't have access to the rate at which the SDF
+decays. But a heuristic tool for at least beginning to make the decisions of
+selecting Ω and the highest frequency to estimate in a structured way is offered
+in `matern_frequency_selector`. This function exactly computes the cutoff
+frequency for which the bias of an SDF estimator exceeds a relative tolerance of
+the true SDF for a Matern process with user-selectable smoothness and range
+parameters. Even for very large `n`, the weight vector computation is by far the
+most expensive component since this code internally uses sparse precision
+approximations to accelerate all covariance matrix operations.
+
+In action, you might modify the above code to do this instead:
+```julia
+(wts, fmax) = matern_frequency_selector(pts, window, smoothness=0.5, alias_tol=0.1)
+est_freqs   = range(0.0, fmax, length=1000)
+est         = estimate_sdf(pts, sims, window, est_freqs; wts=wts)
+```
+In particular:
+- The `smoothness` argument is the smoothness used in the Matern process. The
+  lower this is, the more conservative your `fmax` will be.
+- There is also a kwarg `rho`, for the range parameter. This code automatically
+  selects a reasonable default, but you are welcome to change it.
+- `alias_tol` is the cutoff used to determine how much `fmax` needs to be
+  reduced. In particular, `fmax` is reduced until `|S(fmax) - \E
+  \hat{S}(fmax)|/S(fmax) < alias_tol`. The smaller this value is, the smaller
+  `fmax` will be---but the smaller the relative bias from aliasing will be as well.
+  The choice of this quantity depends on your needs.
+- Finally, there is also a `max_wt_norm` argument, with default value `0.15`.
+  Sometimes you can find a safe way to look deeper into a spectrum by reducing
+  Ω, which will reduce the norm of the weights, and in turn reduce the magnitude
+  of the aliasing bias for every estimate. At this time, we do not have an easy
+  answer about when reducing Ω can actually lead to a higher `fmax`. But
+  especially for non-differentiable processes it clearly can happen.
+
+**NOTE:** Again, this interface will fail to give you good output if your window
+function is not well-selected for your problem. If you have large gaps, please
+wait for the prolate window interface. We'll get it sorted out and available
+here as soon as possible!
+
+This alternative estimator workflow is demonstrated as a plain code file in
+`./examples/matern_selector.jl`.
 
 
 # Roadmap
@@ -81,9 +128,7 @@ shown in green.
 This software library is under very active development. An incomplete list of
 features to expect in the near future:
 
-- A helper function to use a Matern process to automatically select a suitable
-  Ω. This is implemented and in `./src/` now, but not exported or documented
-  as the exact interface design is still being discussed.
+- We definitely should and will add tests.
 - A heuristic tool for handling potentially gappy one-dimensional domains that
   adaptively splits the data domain into disjoint segments based on large gaps
   and balancing the tradeoff between reducing the norm of the weights and the

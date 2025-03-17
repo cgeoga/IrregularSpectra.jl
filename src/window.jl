@@ -1,6 +1,10 @@
 
 window_support(winfun) = (winfun.a, winfun.b)
 
+# REQUIRED interface for a window function object.
+function bandwidth end
+
+
 struct FourierTransform{F}
   fn::F
 end
@@ -12,6 +16,7 @@ struct Kaiser
   b::Float64
 end
 
+
 """
 Kaiser(beta; a, b)
 
@@ -22,6 +27,8 @@ function Kaiser(beta; a=0.0, b=1.0)
   nr     = sqrt(quadgk(x->unitkaiser(s*x + c, beta)^2, a, b, atol=1e-10)[1])
   Kaiser(beta, nr, a, b)
 end
+
+bandwidth(ka::Kaiser) = (ka.beta/(pi*abs(ka.b-ka.a)))
 
 # on [-1/2, 1/2]!
 function unitkaiser(x, beta)

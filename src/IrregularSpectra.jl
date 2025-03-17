@@ -1,8 +1,8 @@
 module IrregularSpectra
 
-  using Printf, Statistics, LinearAlgebra, QuadGK, LowRankApprox, FINUFFT, Bessels
+  using Printf, Statistics, LinearAlgebra, SparseArrays, QuadGK, LowRankApprox, FINUFFT, Bessels
 
-  export window_quadrature_weights, estimate_sdf, Kaiser
+  export window_quadrature_weights, estimate_sdf, Kaiser, matern_frequency_selector
 
   include("utils.jl")
 

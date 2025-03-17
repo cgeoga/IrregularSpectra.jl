@@ -1,4 +1,10 @@
 
+"""
+matern_cov(t, (sigma, rho, smoothness))
+
+The Matern covariance function, specifically parameterized to be the exact
+Fourier transform pair of `matern_sdf` (with the 2*pi in the exponential).
+"""
 function matern_cov(t, p)
   (sig, rho, v) = p
   iszero(t) && return sig^2
@@ -6,6 +12,12 @@ function matern_cov(t, p)
   (sig^2)*((2^(1-v))/Bessels.gamma(v))*(arg^v)*Bessels.besselk(v, arg)
 end
 
+"""
+matern_sdf(ω, (sigma, rho, smoothness))
+
+The Matern spectral density function, specifically parameterized to be the exact
+Fourier transform pair of `matern_cov` (with the 2*pi in the exponential).
+"""
 function matern_sdf(w, p) 
   d = length(w)
   (sig, rho, v) = p
@@ -14,49 +26,81 @@ function matern_sdf(w, p)
   (sig^2)*pre*(2*v/(rho^2) + fpi2*norm(w)^2)^(-v - d/2)
 end
 
-function matern_frequency_selector(pts, win, bw; a=minimum(pts), b=maximum(pts),
-                                   nu_integerpart=0, alpha=0.9, alias_tol=1.0, 
-                                   init_wmax=1.75*length(pts)/(pi*(b-a)))
-  # this is basically exact even for non half-integer orders, but one can choose
-  # a range parameter that breaks things, so for now we keep it restricted.
-  in(nu_integerpart, (0,1,2)) || throw(error("For now, please provide nu_integerpart in (0,1,2)."))
-  # depending on the order, we need a scale parameter to hopefully keep the
-  # matrix from being too poorly conditioned.
-  range_scale = (nu_integerpart == 0 ? 0.1 : (nu_integerpart == 1 ? 0.01 : 0.001))
-  rho = (b - a)*range_scale
+function default_range(g)
+  (a, b) = window_support(g)
+  (b-a)/50
+end
+
+"""
+(weights, fmax) = matern_frequency_selector(pts::Vector{Float64}, g;
+                                            smoothness=1.5, rho=default_range(g),
+                                            alias_tol=1.0, Ω=default_Ω(pts, g),
+                                            max_wt_norm=0.15, min_fmax=0.05*Ω, 
+                                            reduction_factor=0.9)
+
+This function is a **heuristic** tool for estimating the highest possible
+frequency for which an SDF can be estimated in such a way that
+
+|est - truth|/truth < alias_tol.
+
+What this function actually does is compare the variance of the linear contrast
+of a Matern process at locations `pts` corresponding to the frequency `fmax` and
+its intended variance, which is the SDF convolved with the spectral window. If
+those numbers disagree in relative tolerance by more than `alias_tol`, then
+`fmax` is reduced and the comparison is done again. This is made fast by using a
+Vecchia-type approximation for the precision of the Matern process.
+
+Additionally, if the norm of the weights is above `max_wt_norm`, then Ω is
+reduced by `reduction_factor` and the weights are recomputed as well.
+
+**NOTE**: for different `smoothness` values, and to a lesser degree range
+parameter values (`rho`), the corresponding `fmax` will change!  This
+corresponds with the fact that if your SDF decays more slowly, you will have
+more aliasing bias to deal with.  So you should pick the smoothness that you
+think most closely corresponds to the decay rate of your actual data's SDF. 
+"""
+function matern_frequency_selector(pts, g; smoothness=1.5, rho=default_range(g), 
+                                   alias_tol=1.0, Ω=default_Ω(pts, g), min_fmax=0.05*Ω,
+                                   max_wt_norm=0.15, reduction_factor=0.9, verbose=true)
   # finally, we make the actual covariance function.
-  kfn = (x,y) -> matern_cov(abs(x-y), (1.0, rho, nu_integerpart+1/2))
+  kfn = (x,y) -> matern_cov(abs(x-y), (1.0, rho, smoothness))
+  sdf = w     -> matern_sdf(w, (1.0, rho, smoothness))
   # Next, we directly build the sparse Cholesky factor of the precision matrix,
   # getting a matrix such that Sigma ≈ inv(L'*inv(D)*L)).
   (L, D) = sparse_rchol(kfn, pts)
   # Now, we pick an ambitious wmax and check for aliasing control, and in the
   # case where we don't have control we shrink wmax by a factor of alpha.
-  alias_error = Inf
-  wmax        = init_wmax 
-  while true
-    (is_converged, weights) = opaqueweights(pts, win; wmax=wmax, verbose=false)
-    estgrid = range(0.0, wmax/2, length=100)
-    # get what the estimator should be, and check that everything is controlled
-    # to tolerance alias_tol.
-    wft = FourierTransform(win)
-    nu  = nu_integerpart + 1/2
-    shouldbe = map(estgrid) do vj
-      quadgk(w->abs2(wft(w))*matern_sdf(w+vj, (1.0, rho, nu)), -bw, bw, atol=1e-12)[1]
-    end
-    # Now compute the full stochastic integrals by just evaluating the quadratic
-    # form. Probably not fastest to form the full covariance matrix, but that is
-    # an optimization we can do down the road.
-    F  = nudftmatrix(estgrid, pts, 1)
-    Mt = Diagonal(conj.(weights))*F'
-    ests = diag(Mt'*(L\(D*(L'\Mt))))
-    # Finally assess the error diagnostics.
-    errors = abs.(ests .- shouldbe)
-    all(errors .< shouldbe.*alias_tol) && break
-    println("Reducing wmax ($wmax)...")
-    wmax *= alpha
-    wmax < 10.0 && throw(error("Could not achieve desired accuracy for any useful frequency limit."))
+  bw   = bandwidth(g)
+  g_ft = IrregularSpectra.FourierTransform(g)
+  wts  = window_quadrature_weights(pts, g; Ω=Ω, verbose=false)
+  verbose && println("||α||₂ = ", norm(wts))
+  while norm(wts) > max_wt_norm
+    Ω   *= reduction_factor
+    wts  = window_quadrature_weights(pts, g; Ω=Ω, verbose=false)
+    verbose && println("||α||₂ = ", norm(wts))
   end
-  wmax 
+  Dw   = Diagonal(wts)
+  fmax = 0.9*Ω
+  while fmax > min_fmax
+    # The highest frequency column of the NUDFT matrix, corresponding to the
+    # estimate most likely to have unacceptable aliasing bias.
+    fmax_col = [cispi(-2*xj*fmax) for xj in pts]
+    # What the expectation of our estimator should be (the true SDF convolved
+    # with the window function):
+    shouldbe = quadgk(w->abs2(g_ft(w))*sdf(w+fmax), -bw, bw, atol=1e-12)[1]
+    # The actual variance of the linear contrast, accelerated by the sparse
+    # precision of a Markov process.
+    actual   = real(dot(fmax_col, Dw*(L\(D*(L'\(Dw'*fmax_col))))))
+    # Compare the error with the aliasing tol, and either return the weights and
+    # permissible fmax or reduce fmax and repeat.
+    abs(actual - shouldbe) < shouldbe*alias_tol && return (wts, fmax)
+    verbose && println("Reducing fmax ($fmax)...")
+    fmax *= reduction_factor
+  end
+  # in the case where even fmax=min_fmax did not control aliasing bias to the
+  # requested degree, return a NaN for fmax so that this function can't fail in
+  # a way that somebody could miss.
+  (wts, NaN)
 end
 
 # This is a very quick-and-dirty function to compute a sparse inverse Cholesky
