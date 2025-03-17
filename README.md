@@ -21,12 +21,13 @@ using IrregularSpectra
 
 # Generate n uniform points on [a, b]:
 n      = 3000
-(a, b) = (0.0, 1.0)
+(a, b) = (-1.0, 1.0)
 pts    = sort(rand(n).*(b-a) .+ a)
 
-# Simulate a Matern process at those points:
-sim = let kernel = (x,y)->IrregularSpectra.matern_cov(x-y, (1.0, 0.1, 0.75))
-  IrregularSpectra.simulate_process(pts, kernel)
+# Simulate a Matern process at those points with m replicates:
+m   = 500 # number of replicates
+sim = let kernel = (x,y)->IrregularSpectra.matern_cov(x-y, (1.0, 0.1, 1.75))
+  IrregularSpectra.simulate_process(pts, kernel, m)
 end
 ```
 
@@ -35,12 +36,13 @@ which we'd like to estimate the SDF, select the window function we wish to use
 (and it is easy to bring your own!), and use the `estimate_sdf` function. The
 choice `20.0` is the shape parameter with the Kaiser window, and for reference
 on the domain of `[a, b] = [0, 1]` that gives a main lobe half-bandwidth of
-`20/pi`, which is about `6.3`.
+`20/(2*pi)`, which is about `3.2`. The function `estimate_sdf`, if given
+multiple iid samples as columns in `sims`, will average the multiple estimates.
 ```{julia}
-nyquist   = n/(4*(b-a))
-est_freqs = range(0.0, 0.4*nyquist, length=10)
+Ω         = 0.5*n/(4*(b-a)) # half of theoretical nyquist max
+est_freqs = range(0.0, Ω/2, length=1000)
 window    = Kaiser(20.0, a=a, b=b)
-est       = estimate_sdf(pts, sim, window, est_freqs)
+est       = estimate_sdf(pts, sims, window, est_freqs; Ω=Ω)
 ```
 **Note:** we are still finalizing the design interface for prolate functions,
 which can provide significantly more performant weights for points sampled on
@@ -60,14 +62,18 @@ diagnostic, but here is a visual one where we estimate at more frequencies (this
 plot was made with my own wrapper of Gnuplot that uses sixel output, but
 substitute with your preferred plotting tool):
 ```{julia}
-many_est_freqs = range(0.0, 0.4*nyquist, length=n)
-est   = estimate_sdf(pts, sim, window, many_est_freqs)
 truth = IrregularSpectra.matern_sdf.(many_est_freqs, Ref((1.0, 0.1, 0.75)))
-gplot(many_est_freqs, est, truth, ylog=true)
+est1  = estimate_sdf(pts, sims[:,1], window, est_freqs; Ω=Ω) 
+gplot(est_freqs, est1, est, truth, ylog=true)
 ```
 <p align="center">
     <img src="quicksixel_est_demo.png" alt="A sample estimator plot" width=600>
 </p>
+This plot shows the estimator from a single sample (purple), the average
+estimate from `m=500` replicates is shown in blue (indicating that the bias in
+the estimate is minimal compared to its expected value), and the true SDF is
+shown in green.
+
 
 
 # Roadmap

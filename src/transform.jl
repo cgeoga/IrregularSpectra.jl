@@ -4,7 +4,7 @@ function default_Ω(pts, g)
   (_a, _b) = extrema(pts)
   _a < a && @warn "Your window function g(x) has support [$a, $b] and you have a point $(_a) < $a."
   _b > b && @warn "Your window function g(x) has support [$a, $b] and you have a point $(_b) > $b."
-  0.9*length(pts)/(4*(b-a))
+  0.8*length(pts)/(4*(b-a))
 end
 
 """
@@ -42,11 +42,22 @@ function window_quadrature_weights(pts::Vector{Float64}, g; Ω=default_Ω(pts, g
   wts
 end
 
-function estimate_sdf(pts::Vector{Float64}, data, g, frequencies)
-  wts = window_quadrature_weights(pts, g)
+"""
+estimate_sdf(pts::Vector{Float64}, data, g, frequencies; Ω=default_Ω(pts, g))
+
+Estimates the spectral density for the stationary process sampled at locations
+`pts` and with values given by `data` at frequencies `frequencies`. Each column
+in `data` is treated as an iid sample of the process and averaged in the final
+estimator. `Ω` is the resolution maximum for the window quadrature weights. 
+
+As of now, this function does not check the frequencies you are estimating compared
+to the highest resolvable frequency Ω! A safer interface is under development.
+"""
+function estimate_sdf(pts::Vector{Float64}, data, g, frequencies; Ω=default_Ω(pts, g))
+  wts = window_quadrature_weights(pts, g; Ω=Ω)
   fs  = NUFFT3(pts, frequencies.*(2*pi), true, 1e-15)
-  out = Vector{ComplexF64}(undef, length(frequencies))
-  mul!(out, fs, complex(data.*wts))
-  abs2.(out)
+  out = zeros(ComplexF64, length(frequencies), size(data, 2))
+  mul!(out, fs, complex(Diagonal(wts)*data))
+  mean(x->abs2.(x), eachcol(out))
 end
 

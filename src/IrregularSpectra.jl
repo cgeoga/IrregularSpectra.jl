@@ -1,6 +1,6 @@
 module IrregularSpectra
 
-  using Printf, LinearAlgebra, QuadGK, LowRankApprox, FINUFFT, Bessels
+  using Printf, Statistics, LinearAlgebra, QuadGK, LowRankApprox, FINUFFT, Bessels
 
   export window_quadrature_weights, estimate_sdf, Kaiser
 
