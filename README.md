@@ -62,7 +62,7 @@ diagnostic, but here is a visual one where we estimate at more frequencies (this
 plot was made with my own wrapper of Gnuplot that uses sixel output, but
 substitute with your preferred plotting tool):
 ```julia
-truth = IrregularSpectra.matern_sdf.(many_est_freqs, Ref((1.0, 0.1, 0.75)))
+truth = IrregularSpectra.matern_sdf.(many_est_freqs, Ref((1.0, 0.1, 1.75)))
 est1  = estimate_sdf(pts, sims[:,1], window, est_freqs; Ω=Ω) 
 gplot(est_freqs, est1, est, truth, ylog=true)
 ```
