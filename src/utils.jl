@@ -17,3 +17,20 @@ function simulate_process(pts, kernel, m; rng=Random.default_rng())
   L*randn(rng, length(pts), m)
 end
 
+function solve_linsys(pts, wgrid, b; method, tol=1e-14)
+  if method == :sketch
+    F   = NUFFT3(pts, wgrid.*(2*pi), true, 1e-15)
+    Fo  = LinearOperator(F)
+    Fqr = pqrfact(Fo; rtol=tol)
+    return Fqr\b
+  elseif method == :dense
+    F   = nudftmatrix(pts, wgrid, +1)
+    return qr!(F, ColumnNorm())\b
+  else
+    throw(error("The two presently implemented methods are method=:sketch or method=:dense."))
+  end
+end
+
+# generic broadcasted Fourier transform.
+fouriertransform(g, wv::AbstractVector) = fouriertransform.(Ref(g), wv)
+

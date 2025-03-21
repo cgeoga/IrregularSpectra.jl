@@ -1,9 +1,11 @@
 
-function default_Ω(pts, g)
+function default_Ω(pts, g; check=true)
   (a, b)   = window_support(g)
-  (_a, _b) = extrema(pts)
-  _a < a && @warn "Your window function g(x) has support [$a, $b] and you have a point $(_a) < $a."
-  _b > b && @warn "Your window function g(x) has support [$a, $b] and you have a point $(_b) > $b."
+  if check
+    (_a, _b) = extrema(pts)
+    _a < a && @warn "Your window function g(x) has support [$a, $b] and you have a point $(_a) < $a."
+    _b > b && @warn "Your window function g(x) has support [$a, $b] and you have a point $(_b) > $b."
+  end
   0.8*length(pts)/(4*(b-a))
 end
 
@@ -14,30 +16,23 @@ Computes the weights {α_j}_{j=1}^n such that
 
 H_{α}(ω) ≈ G(ω)
 
-for |ω| ≤ Ω. The default Ω is chosen to be 90% of the continuous Nyquist frequency, 
-which is n/(4*(b-a)). In the case where Ω = O(n), with the current routine this computation
-will scale like O(n³). If Ω is fixed and doesn't grow with n, then it will scale like O(n log n).
+for |ω| ≤ Ω. The default Ω is chosen to be 90% of the continuous Nyquist
+frequency, which is n/(4*(b-a)). In the case where Ω = O(n), with the current
+routine this computation will scale like O(n³). If Ω is fixed and doesn't grow
+with n, then it will scale like O(n log n).
 
-The object `g::G` can be any structure represnting a window function. It needs to implement the methods
-
-IrregularSpectra.window_support(g)::Tuple{Float64, Float64}
-IrregularSpectra.FourierTransform{G}(g)(ω::Float64)::ComplexF64
-
-where the latter method means that the struct wrapper `IrregularSpectra.FourierTransform(g)`
-has a method to provide that Fourier transform.
+The object `g::G` can be any structure represnting a window function. It needs
+to implement the methods described at the top of `./src/window.jl`.
 
 **See also:** the function `matern_frequency_selector` takes points and a window
-function and returns both weights and the highest ``safe" frequency to estimate based 
-on a user-provided tolerance for the relative size in aliasing bias.
+function and returns both weights and the highest ``safe" frequency to estimate
+based on a user-provided tolerance for the relative size in aliasing bias.
 """
-function window_quadrature_weights(pts::Vector{Float64}, g; Ω=default_Ω(pts, g), verbose=true)
-  (a, b) = window_support(g)
+function window_quadrature_weights(pts::Vector{Float64}, g; method=:sketch,
+                                   Ω=default_Ω(pts, g), verbose=true)
   wgrid  = range(-Ω, Ω, length=2*length(pts))
-  b      = FourierTransform(g).(wgrid)
-  fs     = NUFFT3(pts, wgrid.*(2*pi), true, 1e-15)
-  fso    = LinearOperator(fs)
-  fsoqr  = pqrfact(fso; rtol=1e-15)
-  wts    = fsoqr\b
+  b      = linsys_rhs(g, wgrid) 
+  wts    = solve_linsys(pts, wgrid, b, method=method)
   if verbose
     @printf "Weight diagnostics:\n"
     @printf "\t - Rank of reduced QR: %i\n" size(fsoqr.Q)[2]

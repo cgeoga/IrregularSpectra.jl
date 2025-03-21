@@ -63,19 +63,20 @@ function matern_frequency_selector(pts, g; smoothness=1.5, rho=default_range(g),
                                    alias_tol=1.0, Ω=default_Ω(pts, g), min_fmax=0.05*Ω,
                                    max_wt_norm=0.15, reduction_factor=0.9, verbose=true)
   # finally, we make the actual covariance function.
-  kfn = (x,y) -> matern_cov(abs(x-y), (1.0, rho, smoothness))
-  sdf = w     -> matern_sdf(w, (1.0, rho, smoothness))
+  kfn  = (x,y) -> matern_cov(abs(x-y), (1.0, rho, smoothness))
+  sdf  = w -> matern_sdf(w, (1.0, rho, smoothness))
+  g_ft = w -> fouriertransform(g, w)
   # Next, we directly build the sparse Cholesky factor of the precision matrix,
   # getting a matrix such that Sigma ≈ inv(L'*inv(D)*L)).
   (L, D) = sparse_rchol(kfn, pts)
   # Now, we pick an ambitious wmax and check for aliasing control, and in the
   # case where we don't have control we shrink wmax by a factor of alpha.
   bw   = bandwidth(g)
-  g_ft = IrregularSpectra.FourierTransform(g)
   wts  = window_quadrature_weights(pts, g; Ω=Ω, verbose=false)
   verbose && println("||α||₂ = ", norm(wts))
   while norm(wts) > max_wt_norm
     Ω   *= reduction_factor
+    Ω    < min_fmax && throw(error("Could not achieve ||α||_2 < $max_wt_norm for Ω > $min_fmax."))
     wts  = window_quadrature_weights(pts, g; Ω=Ω, verbose=false)
     verbose && println("||α||₂ = ", norm(wts))
   end

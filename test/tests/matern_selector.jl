@@ -18,7 +18,7 @@ window      = Kaiser(20.0, a=a, b=b)
 est_freqs   = range(0.0, fmax, length=30)
 est         = estimate_sdf(pts, sims, window, est_freqs; wts=wts)
 
-win_ft      = IrregularSpectra.FourierTransform(window)
+win_ft(w)   = IrregularSpectra.fouriertransform(window, w)
 sdf(w)      = IrregularSpectra.matern_sdf(w, (1.0, 0.1, 0.65))
 
 bw          = IrregularSpectra.bandwidth(window)

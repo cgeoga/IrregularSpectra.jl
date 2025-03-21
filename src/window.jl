@@ -1,13 +1,13 @@
 
-window_support(winfun) = (winfun.a, winfun.b)
-
 # REQUIRED interface for a window function object.
-function bandwidth end
+#
+# window_support(win) -> Tuple{Float64, Float64}
+# bandwidth(win) -> Float64
+# linsys_rhs(win, frequency_grid) -> Vector{ComplexF64}
 
-
-struct FourierTransform{F}
-  fn::F
-end
+#
+# Kaiser window:
+#
 
 struct Kaiser
   beta::Float64
@@ -16,6 +16,7 @@ struct Kaiser
   b::Float64
 end
 
+window_support(ka::Kaiser) = (ka.a, ka.b)
 
 """
 Kaiser(beta; a, b)
@@ -55,9 +56,11 @@ function unitkbwindow_ft(w, beta)
   end
 end
 
-function (fka::FourierTransform{Kaiser})(w)
-  (a, b) = (fka.fn.a, fka.fn.b)
+function fouriertransform(ka::Kaiser, w::Float64)
+  (a, b) = (ka.a, ka.b)
   (s, c) = (1/(b-a), -a/(b-a)-1/2)
-  (cispi(-2*w*c/s)/s)*unitkbwindow_ft(w/s, fka.fn.beta)/fka.fn.normalizer
+  (cispi(-2*w*c/s)/s)*unitkbwindow_ft(w/s, ka.beta)/ka.normalizer
 end
+
+linsys_rhs(ka::Kaiser, frequency_grid) = fouriertransform(ka, frequency_grid)
 
