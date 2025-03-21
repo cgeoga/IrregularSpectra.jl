@@ -2,7 +2,7 @@
 # A dense NUDFT matrix. 
 function nudftmatrix(s1, s2, sgn; T=Float64)
   sgn in (-1.0, 1.0) || throw(error("sign should be -1.0 or 1.0! You provided $sgn."))
-  [cispi(2*T(dot(sj, sk))) for sj in s1, sk in s2]
+  [cispi(2*sgn*T(dot(sj, sk))) for sj in s1, sk in s2]
 end
 
 # A matrix-free but O(n*m) NUDFT application. 

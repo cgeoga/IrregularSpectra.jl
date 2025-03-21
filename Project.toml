@@ -4,9 +4,11 @@ authors = ["Chris Geoga <geoga@wisc.edu>", "Paul Beckman <paul.beckman@cims.nyu.
 version = "0.1.0"
 
 [deps]
+ArnoldiMethod = "ec485272-7323-5ecc-a04f-4719b315124d"
 Bessels = "0e736298-9ec6-45e8-9647-e4fc86a2fe38"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 FINUFFT = "d8beea63-0952-562e-9c6a-8e8ef7364055"
+FastGaussQuadrature = "442a2c76-b920-505d-bb47-c5924d526838"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LowRankApprox = "898213cb-b102-5a47-900c-97e73b919f73"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"

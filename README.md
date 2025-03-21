@@ -133,14 +133,29 @@ features to expect in the near future:
   and balancing the tradeoff between reducing the norm of the weights and the
   off-lobe power in the spectral window. This is again something we have
   implemented and all that is left to do is to polish it.
-- An interface for providing gappy one-dimensional domain information and
-  obtaining prolate function evaluations and right-hand sides for weight
-  calculation. This is again done already---the code just needs to be done and
-  the interface polished.
 - An interface for providing arbitrary points in arbitrary dimensions and
   obtaining prolate function evaluations and right-hand sides for weight
   calculation. This is done _except_ for the step of a designing a robust function
   for automatically obtaining a quadrature rule on the point domain given just
   points. But good tools exist for triangulation-based methods, and so we just
   need to hook into them. Contributions in this space would certainly be welcome.
+- A tool for classifying different categories of sampling schemes. Samples on a
+  regular grid can be handled much faster, and same for a gappy regular grid
+  (although with different mechanisms for each). It would be very nice for this
+  tool to be sufficiently general that it takes _any_ points and gives you back
+  a decent estimator that has been computed as rapidly as possible.
+- A tool for classifying different varieties of gappiness. As an extreme
+  example, consider you have n points on [0, 0.01] and [10, 100]. In the first
+  interval, you will be able to resolve exceptionally high frequencies, but your
+  bandwidth will have to be on the order of 100 or 1000, and so you will be
+  unlikely to resolve anything in the low frequency range. The situation will be
+  entirely reversed on the second interval. It does not make sense to compute one
+  set of weights jointly for both segments, and it would be much better to use the
+  two different sections of data to estimate different parts of the SDF. It would
+  be interesting to implement some variety of `CompositeEstimator` type that
+  handles that decision making at least somewhat automatically.
+- It would be nice to stabilize some kind of result-type API and exported getter
+  functions to protect users from changes that really should only be relevant to
+  internal functions and developers. Maybe some kind of result type like
+  `SpectralEstimator` or something.
 

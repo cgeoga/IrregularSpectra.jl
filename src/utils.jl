@@ -17,11 +17,12 @@ function simulate_process(pts, kernel, m; rng=Random.default_rng())
   L*randn(rng, length(pts), m)
 end
 
-function solve_linsys(pts, wgrid, b; method, tol=1e-14)
+function solve_linsys(pts, wgrid, b; method, tol=1e-14, verbose=false)
   if method == :sketch
-    F   = NUFFT3(pts, wgrid.*(2*pi), true, 1e-15)
+    F   = NUFFT3(pts, wgrid.*(2*pi), false, 1e-15)
     Fo  = LinearOperator(F)
     Fqr = pqrfact(Fo; rtol=tol)
+    verbose && @printf "\t - Rank of reduced QR: %i\n" size(Fqr.Q, 2)
     return Fqr\b
   elseif method == :dense
     F   = nudftmatrix(pts, wgrid, +1)
@@ -33,4 +34,23 @@ end
 
 # generic broadcasted Fourier transform.
 fouriertransform(g, wv::AbstractVector) = fouriertransform.(Ref(g), wv)
+
+function glquadrule(n::Int64; a=-1.0, b=1.0)
+  (no, wt) = gausslegendre(n)
+  (bmad2, bpad2) = ((b-a)/2, (b+a)/2)
+  @inbounds for j in 1:n
+    no[j] = no[j]*bmad2 + bpad2
+    wt[j] = wt[j]*bmad2
+  end
+  (no, wt)
+end
+
+function segment_glquadrule_nyquist(intervals, Ω)
+  nodes_weights = map(intervals) do (aj, bj)
+    glquadrule(Int(ceil(Ω*4*(bj - aj) + 50)), a=aj, b=bj)
+  end
+  (reduce(vcat, getindex.(nodes_weights, 1)), 
+   reduce(vcat, getindex.(nodes_weights, 2)),
+   nodes_weights)
+end
 

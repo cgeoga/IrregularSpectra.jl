@@ -5,7 +5,7 @@
 pts = sort(rand(StableRNG(123), 1000))
 win = Kaiser(20.0)
 Ω   = IrregularSpectra.default_Ω(pts, win)
-wts = window_quadrature_weights(pts, win; verbose=false)
+wts = window_quadrature_weights(pts, win; verbose=false)[2]
 
 wgrid  = range(-Ω, Ω, length=2*length(pts))
 F      = IrregularSpectra.nudftmatrix(wgrid, pts, -1)

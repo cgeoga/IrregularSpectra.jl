@@ -25,3 +25,4 @@ dev*.jl
 Manifest.toml
 *.DS_Store
 !quicksixel_est_demo.png
+devel

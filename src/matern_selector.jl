@@ -58,10 +58,12 @@ parameter values (`rho`), the corresponding `fmax` will change!  This
 corresponds with the fact that if your SDF decays more slowly, you will have
 more aliasing bias to deal with.  So you should pick the smoothness that you
 think most closely corresponds to the decay rate of your actual data's SDF. 
+
+**See also**: the docs for `window_quadrature_weights` outline the keyword args in detail.
 """
 function matern_frequency_selector(pts, g; smoothness=1.5, rho=default_range(g), 
                                    alias_tol=1.0, Ω=default_Ω(pts, g), min_fmax=0.05*Ω,
-                                   max_wt_norm=0.15, reduction_factor=0.9, verbose=true)
+                                   max_wt_norm=Inf, reduction_factor=0.9, verbose=true)
   # finally, we make the actual covariance function.
   kfn  = (x,y) -> matern_cov(abs(x-y), (1.0, rho, smoothness))
   sdf  = w -> matern_sdf(w, (1.0, rho, smoothness))
@@ -72,12 +74,12 @@ function matern_frequency_selector(pts, g; smoothness=1.5, rho=default_range(g),
   # Now, we pick an ambitious wmax and check for aliasing control, and in the
   # case where we don't have control we shrink wmax by a factor of alpha.
   bw   = bandwidth(g)
-  wts  = window_quadrature_weights(pts, g; Ω=Ω, verbose=false)
+  wts  = window_quadrature_weights(pts, g; Ω=Ω, verbose=false)[2]
   verbose && println("||α||₂ = ", norm(wts))
   while norm(wts) > max_wt_norm
     Ω   *= reduction_factor
     Ω    < min_fmax && throw(error("Could not achieve ||α||_2 < $max_wt_norm for Ω > $min_fmax."))
-    wts  = window_quadrature_weights(pts, g; Ω=Ω, verbose=false)
+    wts  = window_quadrature_weights(pts, g; Ω=Ω, verbose=false)[2]
     verbose && println("||α||₂ = ", norm(wts))
   end
   Dw   = Diagonal(wts)

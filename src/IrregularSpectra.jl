@@ -1,8 +1,12 @@
 module IrregularSpectra
 
-  using Random, Printf, Statistics, LinearAlgebra, SparseArrays, QuadGK, LowRankApprox, FINUFFT, Bessels
+  # stdlibs:
+  using Random, Printf, Statistics, LinearAlgebra, SparseArrays
 
-  export window_quadrature_weights, estimate_sdf, Kaiser, matern_frequency_selector
+  # external pacakges (actual dependencies):
+  using QuadGK, LowRankApprox, FINUFFT, Bessels, FastGaussQuadrature, ArnoldiMethod
+
+  export window_quadrature_weights, estimate_sdf, Kaiser, matern_frequency_selector, Prolate1D
 
   include("utils.jl")
 
