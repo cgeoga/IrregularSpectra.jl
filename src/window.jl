@@ -108,9 +108,7 @@ function linsys_rhs(p::Prolate1D, wgrid::AbstractVector{Float64}; tol=1e-10)
   (nodes, weights, nwv) = segment_glquadrule_nyquist(p.intervals, Ω)
   # Step 1: get the prolate functions in the time domain. For reproducibility
   # and testing reasons, we also provide a manual initialization.
-  M    = [sinc(2*p.bandwidth*(tj-tk)) for tj in nodes, tk in nodes]
   Dw   = Diagonal(sqrt.(weights))
-  A    = Symmetric(Dw*M*Dw)
   init = begin # very heuristic!
     lengths = map(iv -> abs(iv[2] - iv[1]), p.intervals)
     normalize!(lengths, 2)
@@ -120,6 +118,7 @@ function linsys_rhs(p::Prolate1D, wgrid::AbstractVector{Float64}; tol=1e-10)
     end
     Dw*reduce(vcat, kaisers)
   end
+  A  = FastSinc(nodes, 2*p.bandwidth, D=Dw)
   pe = partialeigen(partialschur(A, nev=1, v1=init, tol=tol)[1])
   Ae = (values=pe[1], vectors=pe[2]) 
   isempty(Ae.vectors) && throw(error("No convergence for any eigenvectors in discretized concentration problem!"))
