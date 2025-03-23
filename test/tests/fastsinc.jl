@@ -8,7 +8,7 @@ pts = sort(rand(StableRNG(123), 1000)) .- 0.5
 # random input vector:
 v   = randn(StableRNG(124), length(pts))
 
-D   = Diagonal(rand(length(pts)))
+D   = Diagonal(rand(StableRNG(125), length(pts)))
 
 for (oj, bk) in Iterators.product(offsets, bandwidths)
   ptsj = pts .+ oj
