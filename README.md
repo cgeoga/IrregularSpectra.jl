@@ -38,24 +38,13 @@ choice `20.0` is the shape parameter with the Kaiser window, and for reference
 on the domain of `[a, b] = [-1, 1]` that gives a main lobe half-bandwidth of
 `20/(2*pi)`, which is about `3.2`. The function `estimate_sdf`, if given
 multiple iid samples as columns in `sims`, will average the multiple estimates.
+
 ```julia
 Ω         = 0.5*n/(4*(b-a)) # half of theoretical nyquist max
 est_freqs = range(0.0, Ω/2, length=1000)
 window    = Kaiser(20.0, a=a, b=b)
 est       = estimate_sdf(pts, sims, window, est_freqs; Ω=Ω)
 ```
-**Note:** we are still finalizing the design interface for prolate functions,
-which can provide significantly more performant weights for points sampled on
-domains with large gaps (see the paper for demonstrations). If you directly
-translate this demo code to point samples with big gaps, you will get weights
-with a very large norm and all of your estimates will be drowned out with bias
-from unresolvable frequencies. So this demo code only applies for sampling
-schemes that don't involve gaps or other pathologies where the maximum point gap
-doesn't go to zero. Please stay tuned for a more general interface (which is
-coming) and open issues as you experience them, because it is likely that we can
-suggest better window functions even if they are not currently implemented in
-this package.
-
 
 The script document in `./examples/simple_demo.jl` just uses printing as a
 diagnostic, but here is a visual one where we estimate at more frequencies (this
@@ -113,11 +102,6 @@ In particular:
   of the aliasing bias for every estimate. At this time, we do not have an easy
   answer about when reducing Ω can actually lead to a higher `fmax`. But
   especially for non-differentiable processes it clearly can happen.
-
-**NOTE:** Again, this interface will fail to give you good output if your window
-function is not well-selected for your problem. If you have large gaps, please
-wait for the prolate window interface. We'll get it sorted out and available
-here as soon as possible!
 
 This alternative estimator workflow is demonstrated as a plain code file in
 `./examples/matern_selector.jl`.

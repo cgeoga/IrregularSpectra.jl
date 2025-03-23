@@ -1,11 +1,21 @@
 
-using Test, StableRNGs, IrregularSpectra
+using Test, LinearAlgebra, StableRNGs, IrregularSpectra
 
 @testset "recovery" begin
-  include("./tests/recovery.jl")
+  let scope_dummy = 0
+    include("./tests/recovery.jl")
+  end
 end
 
 @testset "Matern selector" begin
-  include("./tests/matern_selector.jl")
+  let scope_dummy = 0
+    include("./tests/matern_selector.jl")
+  end
+end
+
+@testset "Prolate" begin
+  let scope_dummy = 0
+    include("./tests/prolate.jl")
+  end
 end
 

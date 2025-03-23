@@ -32,7 +32,7 @@ function default_range(g)
 end
 
 """
-(weights, fmax) = matern_frequency_selector(pts::Vector{Float64}, g;
+(weights, fmax) = matern_frequency_selector(pts::Vector{Float64}, g::ClosedFormWindow;
                                             smoothness=1.5, rho=default_range(g),
                                             alias_tol=1.0, Ω=default_Ω(pts, g),
                                             max_wt_norm=0.15, min_fmax=0.05*Ω, 
@@ -59,10 +59,14 @@ corresponds with the fact that if your SDF decays more slowly, you will have
 more aliasing bias to deal with.  So you should pick the smoothness that you
 think most closely corresponds to the decay rate of your actual data's SDF. 
 
+**NOTE**: this function requires scalar evaluations of the Fourier transform of
+the window function. As such, the window you provide must be a `::ClosedFormWindow`.
+
 **See also**: the docs for `window_quadrature_weights` outline the keyword args in detail.
 """
-function matern_frequency_selector(pts, g; smoothness=1.5, rho=default_range(g), 
-                                   alias_tol=1.0, Ω=default_Ω(pts, g), min_fmax=0.05*Ω,
+function matern_frequency_selector(pts, g::ClosedFormWindow; smoothness=1.5, 
+                                   rho=default_range(g), alias_tol=1.0, 
+                                   Ω=default_Ω(pts, g), min_fmax=0.05*Ω, 
                                    max_wt_norm=Inf, reduction_factor=0.9, verbose=true)
   # finally, we make the actual covariance function.
   kfn  = (x,y) -> matern_cov(abs(x-y), (1.0, rho, smoothness))
