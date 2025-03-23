@@ -1,7 +1,7 @@
 name = "IrregularSpectra"
 uuid = "44cbfef1-da7d-499c-871f-40d6f2b94496"
 authors = ["Chris Geoga <geoga@wisc.edu>", "Paul Beckman <paul.beckman@cims.nyu.edu>"]
-version = "0.1.0"
+version = "0.2.0"
 
 [deps]
 ArnoldiMethod = "ec485272-7323-5ecc-a04f-4719b315124d"
@@ -23,3 +23,5 @@ FINUFFT = "3.3.1"
 LowRankApprox = "0.5.4"
 QuadGK = "2.11"
 julia = "1.10"
+ArnoldiMethod = "0.40"
+FastGaussQuadrature = "1"

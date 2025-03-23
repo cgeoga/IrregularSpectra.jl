@@ -4,6 +4,14 @@
 This repository is the software library companion to [Nonparametric spectral
 density estimation from irregularly sampled data](https://arxiv.org/abs/2503.00492).
 
+**NOTE:** If you have data that is sampled at regular intervals, or potentially
+on a regular grid with gaps, the computational routines here are slower than
+some existing alternatives. For regularly measured data with no gaps, see any
+standard DSP library. For gappy regular time series, I do not have a reference
+off-hand and this library will work. But it will be slower than more specialized
+methods. Please open an issue if optimized methods for gappy regular data would
+be useful to you now and we can talk.
+
 # Basic usage demonstration
 
 Here is a heavily commented demonstration, which can also be found as a plain
@@ -65,6 +73,41 @@ estimate from `m=500` replicates is shown in blue (indicating that the bias in
 the estimate is minimal compared to its expected value), and the true SDF is
 shown in green.
 
+# Irregular data with large gaps
+
+If you have irregular data with gaps, you are much better off using a
+(generalized) prolate function, which can be yield estimator weights whose norm
+is dramatically smaller than a standard Kaiser window and thus yield estimators
+with significantly lower bias. The above example can be very gently modified for
+this case as follows:
+
+```julia
+using IrregularSpectra
+
+# Your irregularly sampled points, supported on the listed intervals.
+intervals = [(a_1, b_1), ..., (a_k, b_k)]
+pts       = [...] 
+data      = [...]
+
+window    = Prolate1D(bandwidth, intervals)
+est_freqs = [...] # frequencies to estimate at
+est       = estimate_sdf(pts, data, window, est_freqs)
+```
+
+You should be mindful in selecting the highest frequency to estimate, as the
+continuous Nyquist frequency will be capped as the smallest value for each
+segment. See `./examples/gaps_prolate.jl` for a full example.
+
+**NOTE:** This prolate function method is useful for handling gaps, but there
+are sampling circumstances where it simply does not make sense to compute one
+joint estimator. If you have 1M points on `(0, 0.1)`, for example, you can
+resolve exceptionally high frequencies...but your window function will need to
+have a bandwidth on the order of hundreds or thousands to be well concentrated.
+And if you have `1000` points on `(10, 100)`, your can make a window with a
+fabulously small bandwidth but it will not be able to resolve high frequencies.
+In a setting like that, we suggest computing and analyzing two separate
+estimators for each measured interval.
+
 # Experimental features/interfaces
 
 The rate at which aliasing bias can dominate an estimate for the SDF depends
@@ -103,6 +146,12 @@ In particular:
   answer about when reducing Ω can actually lead to a higher `fmax`. But
   especially for non-differentiable processes it clearly can happen.
 
+**NOTE:** This method requires scalar evaluations of the window function and its
+Fourier transform (the subtype `ClosedFormWindow`), so it presently only works
+for `Kaiser` and not `Prolate1D`. We may or may not lift this restriction some
+time in the future, for some complicated reasons I wouldn't count on that
+happening soon.
+
 This alternative estimator workflow is demonstrated as a plain code file in
 `./examples/matern_selector.jl`.
 
@@ -128,16 +177,6 @@ features to expect in the near future:
   (although with different mechanisms for each). It would be very nice for this
   tool to be sufficiently general that it takes _any_ points and gives you back
   a decent estimator that has been computed as rapidly as possible.
-- A tool for classifying different varieties of gappiness. As an extreme
-  example, consider you have n points on [0, 0.01] and [10, 100]. In the first
-  interval, you will be able to resolve exceptionally high frequencies, but your
-  bandwidth will have to be on the order of 100 or 1000, and so you will be
-  unlikely to resolve anything in the low frequency range. The situation will be
-  entirely reversed on the second interval. It does not make sense to compute one
-  set of weights jointly for both segments, and it would be much better to use the
-  two different sections of data to estimate different parts of the SDF. It would
-  be interesting to implement some variety of `CompositeEstimator` type that
-  handles that decision making at least somewhat automatically.
 - It would be nice to stabilize some kind of result-type API and exported getter
   functions to protect users from changes that really should only be relevant to
   internal functions and developers. Maybe some kind of result type like
