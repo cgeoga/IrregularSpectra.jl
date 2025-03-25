@@ -122,12 +122,12 @@ end
 # -- I'm sure other stuff too
 # But I doubt that this will _ever_ be the bottleneck even as it is, so it
 # doesn't seem like a high priority to me.
-function sparse_rchol(kfn, pts)
+function sparse_rchol(kfn, pts; k=20)
   n = length(pts)
   L = sparse(Diagonal(ones(n)))
   D = zeros(n)
   for j in 1:n
-    cix  = max(1, j-20):(j-1)
+    cix  = max(1, j-k):(j-1)
     pt   = pts[j]
     cpts = pts[cix]
     Sjj  = kfn(pt, pt)
