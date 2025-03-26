@@ -24,8 +24,23 @@ function solve_linsys(pts, win, Ω; method, tol=1e-14, verbose=false)
     F     = NUFFT3(pts, wgrid.*(2*pi), false, 1e-15)
     Fo    = LinearOperator(F)
     Fqr   = pqrfact(Fo; rtol=tol)
-    verbose && @printf "\t - Rank of reduced QR: %i\n" size(Fqr.Q, 2)
+    verbose && @printf "Rank of reduced QR: %i\n" size(Fqr.Q, 2)
     return Fqr\b
+  elseif method == :krylov
+    (wgrid, glwts) = IrregularSpectra.glquadrule(length(pts) + 100, a=-Ω, b=Ω)
+    rhs      = IrregularSpectra.linsys_rhs(win, wgrid)
+    pts_sa   = [SA[x] for x in pts]
+    D        = Diagonal(sqrt.(glwts))
+    F        = IrregularSpectra.NUFFT3(pts, wgrid.*(2*pi), false, 1e-15, D)
+    kern     = (x,y) -> 2*Ω*sinc(2*Ω*(x[]-y[])) + Float64(x[]==y[])*1e-8
+    sk       = KernelMatrix(kern, pts_sa, pts_sa)
+    pre_time = @elapsed begin
+      H  = assemble_hmatrix(sk; atol=1e-8)
+      Hf = has_empty_leaves(H) ? I : lu(H; atol=1e-8)
+    end
+    verbose && @printf "Preconditioner assembly time: %1.3fs\n" pre_time
+    vrb = verbose ? 10 : 0
+    return lsmr(F, D*rhs, N=Hf, verbose=vrb, etol=1e-13, ldiv=true, itmax=500)[1]
   elseif method == :dense
     wgrid = range(-Ω, Ω, length=length(pts))
     b     = linsys_rhs(win, wgrid)
@@ -38,6 +53,9 @@ end
 
 # generic broadcasted Fourier transform.
 fouriertransform(g, wv::AbstractVector) = fouriertransform.(Ref(g), wv)
+
+chebnodes(n) = reverse([cos(pi*(2*k-1)/(2*n)) for k in 1:n])./2 .+ 0.5
+chebnodes(n, a, b) = chebnodes(n)*(b-a) .+ a
 
 function glquadrule(n::Int64; a=-1.0, b=1.0)
   (no, wt) = gausslegendre(n)
@@ -58,3 +76,8 @@ function segment_glquadrule_nyquist(intervals, Ω)
    nodes_weights)
 end
 
+function has_empty_leaves(H)
+  sparse_leaves = filter(x->HMatrices.isadmissible(x), HMatrices.leaves(H))
+  (rmin, rmax)  = extrema(x->HMatrices.rank(x.data), sparse_leaves)
+  iszero(rmin) 
+end

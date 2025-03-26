@@ -21,3 +21,9 @@ err   = abs.(rec[ix_in] - should[ix_in])./abs.(should[ix_in])
 ix_out = findall(x->abs(x) > IrregularSpectra.bandwidth(win), wgrid)
 @test maximum(rec[ix_out]) < 1.01*maximum(should[ix_out])
 
+# test 3: Krylov variant. This one has to be a bit more slack, because asking an
+# iterative solver to give you 1e-20 instead of 1e-16 is pretty hard.
+wts_kry = window_quadrature_weights(pts, win; method=:krylov)[2]
+rec_kry = abs2.(F*wts_kry)
+@test maximum(rec_kry[ix_out]) < 1e-15
+
