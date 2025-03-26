@@ -57,17 +57,13 @@ based on a user-provided tolerance for the relative size in aliasing bias.
 function window_quadrature_weights(pts::Vector{Float64}, g; method=:sketch,
                                    Ω=default_Ω(pts, g), max_wt_norm=Inf, 
                                    min_Ω=0.05*Ω, reduction_factor=0.9, verbose=true)
-  wgrid  = range(-Ω, Ω, length=2*length(pts))
-  b      = linsys_rhs(g, wgrid) 
-  wts    = solve_linsys(pts, wgrid, b, method=method, verbose=verbose)
+  wts    = solve_linsys(pts, g, Ω, method=method, verbose=verbose)
   verbose &&  @printf "Weight diagnostics:\n"
   verbose && @printf "\t - ||α||₂:             %1.5e\n" norm(wts)
   while norm(wts) > max_wt_norm
     Ω     *= reduction_factor
     Ω < min_Ω && throw(error("Could not achieve ||α||₂ < $max_wt_norm for Ω > $min_Ω."))
-    wgrid  = range(-Ω, Ω, length=2*length(pts))
-    b      = linsys_rhs(g, wgrid) 
-    wts    = solve_linsys(pts, wgrid, b, method=method, verbose=verbose)
+    wts    = solve_linsys(pts, g, Ω, method=method, verbose=verbose)
     verbose && @printf "\t - ||α||₂:             %1.5e\n" norm(wts)
   end
   (Ω, wts)

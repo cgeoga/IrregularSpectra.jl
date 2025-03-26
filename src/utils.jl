@@ -17,15 +17,19 @@ function simulate_process(pts, kernel, m; rng=Random.default_rng())
   L*randn(rng, length(pts), m)
 end
 
-function solve_linsys(pts, wgrid, b; method, tol=1e-14, verbose=false)
+function solve_linsys(pts, win, Ω; method, tol=1e-14, verbose=false)
   if method == :sketch
-    F   = NUFFT3(pts, wgrid.*(2*pi), false, 1e-15)
-    Fo  = LinearOperator(F)
-    Fqr = pqrfact(Fo; rtol=tol)
+    wgrid = range(-Ω, Ω, length=length(pts))
+    b     = linsys_rhs(win, wgrid)
+    F     = NUFFT3(pts, wgrid.*(2*pi), false, 1e-15)
+    Fo    = LinearOperator(F)
+    Fqr   = pqrfact(Fo; rtol=tol)
     verbose && @printf "\t - Rank of reduced QR: %i\n" size(Fqr.Q, 2)
     return Fqr\b
   elseif method == :dense
-    F   = nudftmatrix(pts, wgrid, +1)
+    wgrid = range(-Ω, Ω, length=length(pts))
+    b     = linsys_rhs(win, wgrid)
+    F     = nudftmatrix(pts, wgrid, +1)
     return qr!(F, ColumnNorm())\b
   else
     throw(error("The two presently implemented methods are method=:sketch or method=:dense."))
