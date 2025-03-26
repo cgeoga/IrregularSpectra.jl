@@ -25,12 +25,18 @@ end
 # TODO (cg 2024/10/03 14:57): could easily generalize this to be 2D or 3D with a
 # parametric type of s{1,2}::Vector{T} where T and then specialize the `mul!`s
 # as well.
-struct NUFFT3
+#
+# D is an optional addition so that this operator represents the action
+# v ↦ D*(F*v).
+struct NUFFT3{T}
   s1::Vector{Float64}
   s2::Vector{Float64}
   sgn::Bool
   tol::Float64
+  D::T
 end
+
+NUFFT3(s1, s2, sgn, tol) = NUFFT3(collect(s1), collect(s2), sgn, tol, I)
 
 Base.eltype(nf::NUFFT3)       = ComplexF64
 Base.size(nf::NUFFT3)         = (length(nf.s2), length(nf.s1))
@@ -42,13 +48,13 @@ LinearAlgebra.ishermitian(nf::NUFFT3)  = false
 function LinearAlgebra.mul!(buf, nf::NUFFT3, x)
   ifl = nf.sgn ? Int32(1) : Int32(-1)
   nufft1d3!(nf.s1, collect(x), ifl, nf.tol, nf.s2, buf)
-  buf
+  buf .= nf.D*buf
 end
 
 function LinearAlgebra.mul!(buf, anf::Adjoint{ComplexF64, NUFFT3}, x)
   nf  = anf.parent
   ifl = nf.sgn ? Int32(-1) : Int32(1)
-  nufft1d3!(nf.s2, collect(x), ifl, nf.tol, nf.s1, buf)
+  nufft1d3!(nf.s2, collect(nf.D'*x), ifl, nf.tol, nf.s1, buf)
   buf
 end
 
