@@ -27,7 +27,11 @@ function solve_linsys(pts, win, Ω; method, verbose=false)
     verbose && @printf "Rank of reduced QR: %i\n" size(Fqr.Q, 2)
     return Fqr\b
   elseif method == :krylov
-    (wgrid, glwts) = IrregularSpectra.glquadrule(length(pts) + 500, a=-Ω, b=Ω)
+    # TODO (cg 2025/03/28 18:13): think harder about what this nquad should be.
+    # Yes it is cheap to crank it up, but if this can be reduced then naturally
+    # it should be.
+    nquad    = max(1000, 4*max_segment_length(pts, win) + 100)
+    (wgrid, glwts) = IrregularSpectra.glquadrule(nquad, a=-Ω, b=Ω)
     rhs      = IrregularSpectra.linsys_rhs(win, wgrid)
     pts_sa   = [SA[x] for x in pts]
     D        = Diagonal(sqrt.(glwts))
@@ -68,14 +72,15 @@ function glquadrule(n::Int64; a=-1.0, b=1.0)
   (no, wt)
 end
 
-function segment_glquadrule_nyquist(intervals, Ω)
+function segment_glquadrule(intervals, m; add=0)
   nodes_weights = map(intervals) do (aj, bj)
-    glquadrule(Int(ceil(Ω*4*(bj - aj) + 50)), a=aj, b=bj)
+    glquadrule(Int(ceil(m*(bj - aj))) + add, a=aj, b=bj)
   end
   (reduce(vcat, getindex.(nodes_weights, 1)), 
-   reduce(vcat, getindex.(nodes_weights, 2)),
-   nodes_weights)
+   reduce(vcat, getindex.(nodes_weights, 2)))
 end
+
+segment_glquadrule_nyquist(intervals, Ω) = segment_glquadrule(intervals, Ω*4, add=50)
 
 function has_empty_leaves(H)
   sparse_leaves = filter(x->HMatrices.isadmissible(x), HMatrices.leaves(H))

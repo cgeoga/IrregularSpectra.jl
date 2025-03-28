@@ -11,6 +11,7 @@ abstract type ImplicitWindow end
 # window_support(win) -> Tuple{Float64, Float64}
 # bandwidth(win) -> Float64
 # linsys_rhs(win, frequency_grid) -> Vector{ComplexF64}
+# max_segment_length(pts, win) -> Int64
 #
 # ADDITIONALLY, for a ClosedFormWindow:
 #
@@ -43,6 +44,8 @@ function Kaiser(beta; a=0.0, b=1.0)
 end
 
 bandwidth(ka::Kaiser) = (ka.beta/(pi*abs(ka.b-ka.a)))
+
+max_segment_length(pts, ka::Kaiser) = length(pts)
 
 # on [-1/2, 1/2]!
 function unitkaiser(x, beta)
@@ -102,37 +105,75 @@ window_support(p::Prolate1D) = (minimum(minimum, p.intervals),
 
 bandwidth(p::Prolate1D) = p.bandwidth
 
-function linsys_rhs(p::Prolate1D, wgrid::AbstractVector{Float64}; tol=1e-10)
-  # Step 0: get a quadrature rule.
-  Ω      = maximum(abs, wgrid)
-  (nodes, weights, nwv) = segment_glquadrule_nyquist(p.intervals, Ω)
-  # Step 1: get the prolate functions in the time domain. For reproducibility
-  # and testing reasons, we also provide a manual initialization.
-  Dw   = Diagonal(sqrt.(weights))
-  init = begin # very heuristic!
-    lengths = map(iv -> abs(iv[2] - iv[1]), p.intervals)
-    normalize!(lengths, 2)
-    kaisers = map(enumerate(p.intervals)) do (j, (aj, bj))
-      ka = Kaiser(bandwidth(p)*pi*(bj - aj), a=aj, b=bj)
-      ka.(nwv[j][1]).*lengths[j]
-    end
-    Dw*reduce(vcat, kaisers)
+function max_segment_length(pts, p::Prolate1D)
+  maximum(p.intervals) do (aj, bj)
+    count(x-> aj <= x <= bj, pts)
   end
-  A  = FastSinc(nodes, 2*p.bandwidth, D=Dw)
-  pe = partialeigen(partialschur(A, nev=1, v1=init, tol=tol)[1])
-  Ae = (values=pe[1], vectors=pe[2]) 
-  isempty(Ae.vectors) && throw(error("No convergence for any eigenvectors in discretized concentration problem!"))
-  ldiv!(Dw, Ae.vectors)
-  # sanitize the output: sometimes if you resolve more eigenpairs than
-  # requested, the output won't have the shape you think. So this routine simply
-  # sorts things how you would expect and standardizes the output.
-  eix  = findmax(abs, Ae.values)[2]
-  slep = real(Ae.vectors[:,eix])
-  # quick normalization to make the prolates have unit L2 norm:
-  slep ./= sqrt(dot(weights, abs2.(slep)))
+end
+
+function linsys_rhs(p::Prolate1D, wgrid::AbstractVector{Float64})
+  Ω = maximum(abs, wgrid)
+  (nodes, weights) = segment_glquadrule_nyquist(p.intervals, Ω)
+  # Step 1: get the prolate in the time domain.
+  (cnodes, cweights, cslep) = prolate_timedomain(p, max(512, 5*prolate_minimal_m(p)))
+  slep = prolate_interpolate(p, cnodes, cweights, cslep, nodes, weights)
   # Step 2: compute their CFT.
-  nufftop  = nudftmatrix(wgrid, nodes, -1)
-  spectra  = Vector{ComplexF64}(undef, length(wgrid))
+  nufftop = NUFFT3(nodes, wgrid.*(2*pi), false, 1e-15)
+  spectra = Vector{ComplexF64}(undef, length(wgrid))
   mul!(spectra, nufftop, complex(weights.*slep))
+end
+
+function prolate_interpolate(p::Prolate1D, coarse_nodes, coarse_weights, 
+                             coarse_values, fine_nodes, fine_weights)
+  # TODO (cg 2025/03/28 18:16): change FastSinc to not be hard-coded symmetric
+  # to speed this up (although the point is that this matrix is very
+  # rectangular, so not crucial).
+  S = [sinc(2*p.bandwidth*(x-y)) for y in fine_nodes, x in coarse_nodes]
+  s = S*(coarse_values.*coarse_weights)
+  s ./= sqrt(dot(fine_weights, abs2.(s)))
+end
+
+function prolate_timedomain(p::Prolate1D, m; maxsize=5000)
+  (nodes, weights) = segment_glquadrule(p.intervals, m)
+  length(nodes) > maxsize && throw(error("Size limit reached for exact prolate computation. Perhaps your refinement has failed?"))
+  sqrtwts = sqrt.(weights)
+  Dw = Diagonal(sqrtwts)
+  A  = Symmetric([sinc(2*p.bandwidth*(nodes[j] - nodes[k]))*sqrtwts[j]*sqrtwts[k]
+                  for j in eachindex(nodes), k in eachindex(nodes)])
+  Ae   = eigen!(A)
+  slep = real(Ae.vectors[:,end])
+  ldiv!(Dw, slep)
+  slep ./= sqrt(dot(weights, abs2.(slep)))
+  slep .*= sign(slep[findmax(abs, slep)[2]])
+  (nodes, weights, slep)
+end
+
+function prolate_minimal_m(p::Prolate1D)
+  minimum(p.intervals) do (aj, bj)
+    2*p.bandwidth*(bj - aj)*4
+  end
+end
+
+# An automatically refining alternative.
+#
+# TODO (cg 2025/03/28 17:47): for larger bandwidths, I think this is just not
+# stable because the eigenvalue problem itself seems very numerically
+# challenging. I think we are getting a linear combination of effectively
+# equally concentrated vectors, but it is throwing off these pointwise
+# assessments of convergence.
+function prolate_timedomain(p::Prolate1D; m_init=prolate_minimal_m(p), tol=0.0025)
+  (nodes_m,  weights_m,  slep_m)  = prolate_timedomain(p, m)
+  (nodes_2m, weights_2m, slep_2m) = prolate_timedomain(p, 2*m)
+  slep_itp = prolate_interpolate(p, nodes_m, weights_m, slep_m, nodes_2m, weights_2m)
+  while maximum(abs, slep_itp - slep_2m) > tol
+    m *= 2
+    nodes_m   = nodes_2m
+    weights_m = weights_2m
+    slep_m    = slep_2m
+    (nodes_2m, weights_2m, slep_2m) = prolate_timedomain(p, 2*m)
+    slep_itp  = prolate_interpolate(p, nodes_m, weights_m, slep_m, 
+                                    nodes_2m, weights_2m)
+  end
+  (nodes_2m, weights_2m, slep_2m) 
 end
 
