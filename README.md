@@ -4,14 +4,6 @@
 This repository is the software library companion to [Nonparametric spectral
 density estimation from irregularly sampled data](https://arxiv.org/abs/2503.00492).
 
-**NOTE:** If you have data that is sampled at regular intervals, or potentially
-on a regular grid with gaps, the computational routines here are slower than
-some existing alternatives. For regularly measured data with no gaps, see any
-standard DSP library. For gappy regular time series, I do not have a reference
-off-hand and this library will work. But it will be slower than more specialized
-methods. Please open an issue if optimized methods for gappy regular data would
-be useful to you now and we can talk.
-
 # Basic usage demonstration
 
 Here is a heavily commented demonstration, which can also be found as a plain
@@ -109,6 +101,18 @@ In a setting like that, we suggest computing and analyzing two separate
 estimators for each measured interval.
 
 # Experimental features/interfaces
+
+## `Krylov.jl`-powered implicit methods for weight computation
+
+Computing the weights required for this estimator takes O(n^3) work if done
+naively. But using the accelerations of the NUFFT and implicit Krylov methods
+with a carefully chosen preconditioner, we now offer as the default option an
+implicit method that in ideal cases scales quasilinearly instead. At this time
+we do not offer any proof or guarantees of this scaling, but in our
+experimentation it works pretty well. Details in this implementation are likely
+to change over time.
+
+## A heuristic frequency selector
 
 The rate at which aliasing bias can dominate an estimate for the SDF depends
 strongly on several factors. The primary two factors are the norm of the weights

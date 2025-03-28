@@ -17,17 +17,17 @@ function simulate_process(pts, kernel, m; rng=Random.default_rng())
   L*randn(rng, length(pts), m)
 end
 
-function solve_linsys(pts, win, Ω; method, tol=1e-14, verbose=false)
+function solve_linsys(pts, win, Ω; method, verbose=false)
   if method == :sketch
     wgrid = range(-Ω, Ω, length=length(pts))
     b     = linsys_rhs(win, wgrid)
     F     = NUFFT3(pts, wgrid.*(2*pi), false, 1e-15)
     Fo    = LinearOperator(F)
-    Fqr   = pqrfact(Fo; rtol=tol)
+    Fqr   = pqrfact(Fo; rtol=1e-14)
     verbose && @printf "Rank of reduced QR: %i\n" size(Fqr.Q, 2)
     return Fqr\b
   elseif method == :krylov
-    (wgrid, glwts) = IrregularSpectra.glquadrule(length(pts) + 100, a=-Ω, b=Ω)
+    (wgrid, glwts) = IrregularSpectra.glquadrule(length(pts) + 500, a=-Ω, b=Ω)
     rhs      = IrregularSpectra.linsys_rhs(win, wgrid)
     pts_sa   = [SA[x] for x in pts]
     D        = Diagonal(sqrt.(glwts))
@@ -40,7 +40,8 @@ function solve_linsys(pts, win, Ω; method, tol=1e-14, verbose=false)
     end
     verbose && @printf "Preconditioner assembly time: %1.3fs\n" pre_time
     vrb = verbose ? 10 : 0
-    return lsmr(F, D*rhs, N=Hf, verbose=vrb, etol=1e-13, ldiv=true, itmax=500)[1]
+    return lsmr(F, D*rhs, N=Hf, verbose=vrb, etol=0.0, axtol=0.0, atol=1e-11, 
+                btol=0.0, rtol=1e-10, conlim=Inf, ldiv=true, itmax=500)[1]
   elseif method == :dense
     wgrid = range(-Ω, Ω, length=length(pts))
     b     = linsys_rhs(win, wgrid)

@@ -33,6 +33,26 @@ to implement the methods described at the top of `./src/window.jl`.
 
 Keyword arguments are as follows:
 
+- `method = :krylov`: the numerical method used to obtain the weights. See the
+paper for full details, but this is a potentially very large least squares problem
+with a rank-deficient design matrix that needs to be solved. Options are:
+
+  - `:krylov`: the default choice, which uses `Krylov.lsmr` to compute the weights
+    in an entirely matrix-free way. We highly suggest `verbose=true` here, because
+    if you have asked for an impossible window function the convergence will be slow.
+    In our experience, if it takes more than ~100 iterations, something isn't right.
+
+  - `:sketch`: uses `LowRankApprox` to obtain a partial pivoted QR factorizaton for
+    the associated nonuniform Fourier matrix. If `Ω` is small compared to `n`, this
+    may be the fastest option. It is necessary to obtain this partial factorization
+    to very high accuracy, though, so the worst case here is when the Fourier matrix
+    is unitary. In that case, you'll basically do O(log(n)) many full QR factorizations
+    and it will be very slow.
+
+  - `:dense`: uses a simple `qr(F, ColumnNorm())` on the nonuniform Fourier matrix.
+    This will almost never be the fastest option, but we offer it for those who
+    are exploring or debugging.
+
 - `Ω = default_Ω(pts, g)`: the highest frequency that the weights will attempt
 to resolve. This defaults to 80% of the Nyquist frequency, but can be adaptively
 reduced if the norm of the weights is too high.
@@ -54,7 +74,7 @@ may save you on the cost of recomputing weights, but it may mean your ultimate
 function and returns both weights and the highest ``safe" frequency to estimate
 based on a user-provided tolerance for the relative size in aliasing bias.
 """
-function window_quadrature_weights(pts::Vector{Float64}, g; method=:sketch,
+function window_quadrature_weights(pts::Vector{Float64}, g; method=:krylov,
                                    Ω=default_Ω(pts, g), max_wt_norm=Inf, 
                                    min_Ω=0.05*Ω, reduction_factor=0.9, verbose=true)
   wts    = solve_linsys(pts, g, Ω, method=method, verbose=verbose)
