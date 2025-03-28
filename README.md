@@ -4,6 +4,9 @@
 This repository is the software library companion to [Nonparametric spectral
 density estimation from irregularly sampled data](https://arxiv.org/abs/2503.00492).
 
+Please note that precompile times are long right now. We are working to identify
+the source of the problem and mitigate it.
+
 # Basic usage demonstration
 
 Here is a heavily commented demonstration, which can also be found as a plain
