@@ -118,7 +118,7 @@ function linsys_rhs(p::Prolate1D, wgrid::AbstractVector{Float64})
   (cnodes, cweights, cslep) = prolate_timedomain(p, max(512, 5*prolate_minimal_m(p)))
   slep = prolate_interpolate(p, cnodes, cweights, cslep, nodes, weights)
   # Step 2: compute their CFT.
-  nufftop = NUFFT3(nodes, wgrid.*(2*pi), false, 1e-15)
+  nufftop = NUFFT3(nodes, collect(wgrid.*(2*pi)), false, 1e-15)
   spectra = Vector{ComplexF64}(undef, length(wgrid))
   mul!(spectra, nufftop, complex(weights.*slep))
 end

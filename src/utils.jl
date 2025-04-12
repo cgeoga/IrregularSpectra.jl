@@ -21,7 +21,7 @@ function solve_linsys(pts, win, Ω; method, verbose=false)
   if method == :sketch
     wgrid = range(-Ω, Ω, length=length(pts))
     b     = linsys_rhs(win, wgrid)
-    F     = NUFFT3(pts, wgrid.*(2*pi), false, 1e-15)
+    F     = NUFFT3(pts, collect(wgrid.*(2*pi)), false, 1e-15)
     Fo    = LinearOperator(F)
     Fqr   = pqrfact(Fo; rtol=1e-14)
     verbose && @printf "Rank of reduced QR: %i\n" size(Fqr.Q, 2)
@@ -31,11 +31,11 @@ function solve_linsys(pts, win, Ω; method, verbose=false)
     # Yes it is cheap to crank it up, but if this can be reduced then naturally
     # it should be.
     nquad    = max(1000, 4*max_segment_length(pts, win) + 100)
-    (wgrid, glwts) = IrregularSpectra.glquadrule(nquad, a=-Ω, b=Ω)
-    rhs      = IrregularSpectra.linsys_rhs(win, wgrid)
+    (wgrid, glwts) = glquadrule(nquad, a=-Ω, b=Ω)
+    rhs      = linsys_rhs(win, wgrid)
     pts_sa   = [SA[x] for x in pts]
     D        = Diagonal(sqrt.(glwts))
-    F        = IrregularSpectra.NUFFT3(pts, wgrid.*(2*pi), false, 1e-15, D)
+    F        = NUFFT3(pts, collect(wgrid.*(2*pi)), false, 1e-15, D)
     kern     = (x,y) -> 2*Ω*sinc(2*Ω*(x[]-y[])) + Float64(x[]==y[])*1e-8
     sk       = KernelMatrix(kern, pts_sa, pts_sa)
     pre_time = @elapsed begin

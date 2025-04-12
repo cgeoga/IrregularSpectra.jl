@@ -109,7 +109,7 @@ function estimate_sdf(pts::Vector{Float64}, data, g, frequencies;
   if isnothing(wts)
     (Ω, wts) = window_quadrature_weights(pts, g; Ω=Ω, kwargs...)
   end
-  fs  = NUFFT3(pts, frequencies.*(2*pi), true, 1e-15)
+  fs  = NUFFT3(pts, collect(frequencies.*(2*pi)), true, 1e-15)
   out = zeros(ComplexF64, length(frequencies), size(data, 2))
   mul!(out, fs, complex(Diagonal(wts)*data))
   mean(x->abs2.(x), eachcol(out))
