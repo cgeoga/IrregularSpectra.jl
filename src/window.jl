@@ -8,18 +8,22 @@ abstract type ImplicitWindow end
 
 # REQUIRED interface for any window function object.
 #
-# window_support(win) -> Tuple{Float64, Float64}
-# bandwidth(win) -> Float64
 # linsys_rhs(win, frequency_grid) -> Vector{ComplexF64}
+# default_Ω(pts, win) -> Float64  __OR__ window_support(win) -> Tuple{Float64, Float64}.
 #
 # ADDITIONALLY, for a ClosedFormWindow:
 #
+# bandwidth(win) -> Float64
 # (win::YourWindow)(x) -> Float64                                      (scalar evaluation)
 # IrregularSpectra.fouriertransform(win::YourWindow, ω) -> ComplexF64  (scalar FT)
 #
 # ADDITIONALLY, if you want to use the Krylov weight computation:
 #
 # krylov_nquad(pts, win) -> Int64
+#
+# OPTIONALLY, if you want to use the standard default_Ω function:
+#
+# window_support(win) -> Tuple{Float64, Float64}
 
 
 #
@@ -103,9 +107,6 @@ struct Prolate1D <: ImplicitWindow
   intervals::Vector{NTuple{2,Float64}}
 end
 
-window_support(p::Prolate1D) = (minimum(minimum, p.intervals),
-                                maximum(maximum, p.intervals))
-
 bandwidth(p::Prolate1D) = p.bandwidth
 
 function krylov_nquad(pts, p::Prolate1D)
@@ -179,5 +180,12 @@ function prolate_timedomain(p::Prolate1D; m_init=prolate_minimal_m(p), tol=0.002
                                     nodes_2m, weights_2m)
   end
   (nodes_2m, weights_2m, slep_2m) 
+end
+
+function default_Ω(pts, g::Prolate1D; check=false)
+  minimum(g.intervals) do (aj, bj)
+    nj = count(x-> aj <= x <= bj, pts)
+    0.8*nj/(4*(bj - aj))
+  end
 end
 

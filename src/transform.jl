@@ -1,19 +1,14 @@
 
 function default_Ω(pts, g; check=true)
-  (a, b)   = window_support(g)
+  # Note that window_support(g::YourWindow) may not be implemented, in which
+  # case you either need to implement it or write a custom default_Ω.
+  (a, b) = window_support(g)
   if check
     (_a, _b) = extrema(pts)
     _a < a && @warn "Your window function g(x) has support [$a, $b] and you have a point $(_a) < $a."
     _b > b && @warn "Your window function g(x) has support [$a, $b] and you have a point $(_b) > $b."
   end
   0.8*length(pts)/(4*(b-a))
-end
-
-function default_Ω(pts, g::Prolate1D; check=false)
-  minimum(g.intervals) do (aj, bj)
-    nj = count(x-> aj <= x <= bj, pts)
-    0.8*nj/(4*(bj - aj))
-  end
 end
 
 """

@@ -15,11 +15,40 @@ function simulate_process(pts, kernel, m; rng=Random.default_rng())
   L*randn(rng, length(pts), m)
 end
 
+gen_wgrid(pts::Vector{Float64}, Ω) = range(-Ω, Ω, length=length(pts))
+
+# TODO (cg 2025/04/12 14:34): For now, this only gives you squares in
+# higher-dimensional frequency space. That can certainly be lifted, but will
+# keep it simple for now.
+function gen_wgrid(pts::Vector{SVector{D,Float64}}, Ω::Float64) where{D}
+  len1d   = Int(ceil(length(pts)^(1/D)))
+  wgrid1d = range(-Ω, Ω, length=len1d)
+  vec(SVector{D,Float64}.(Iterators.product(fill(wgrid1d, D)...)))
+end
+
+static_points(x::Vector{Float64}) = [SA[xj] for xj in x]
+static_points(x::Vector{SVector{D,Float64}}) where{D} = x
+
+struct SincKernel{D} <: Function
+  Ωv::NTuple{D,Float64}
+  perturb::Float64
+end
+
+function (sk::SincKernel{D})(x::SVector{D,Float64}, y::SVector{D,Float64}) where{D}
+  xmy  = x-y
+  out  = prod(1:D) do j
+    Ωj = sk.Ωv[j]
+    2*Ωj*sinc(2*Ωj*xmy[j])
+  end
+  iszero(xmy) && (out += sk.perturb)
+  out
+end
+
+getdim(pts::Vector{SVector{D,Float64}}) where{D} = 1
+
 function solve_linsys(pts, win, Ω; method, verbose=false)
   if method == :sketch
-    # TODO (cg 2025/04/12 12:23): make this wgrid construction dimension
-    # agnostic. Maybe just add a function like gen_wgrid(pts, Ω) or something.
-    wgrid = range(-Ω, Ω, length=length(pts))
+    wgrid = gen_wgrid(pts, Ω) 
     b     = linsys_rhs(win, wgrid)
     F     = NUFFT3(pts, collect(wgrid.*(2*pi)), false, 1e-15)
     Fo    = LinearOperator(F)
@@ -30,13 +59,12 @@ function solve_linsys(pts, win, Ω; method, verbose=false)
     # TODO (cg 2025/03/28 18:13): think harder about what this nquad should be.
     # Yes it is cheap to crank it up, but if this can be reduced then naturally
     # it should be.
-    nquad    = max(1000, krylov_nquad(pts, win)) 
-    (wgrid, glwts) = glquadrule(nquad, -Ω, Ω)
+    (wgrid, glwts) = glquadrule(krylov_nquad(pts, win), -Ω, Ω)
     rhs      = linsys_rhs(win, wgrid)
-    pts_sa   = [SA[x] for x in pts]
+    pts_sa   = static_points(pts)
     D        = Diagonal(sqrt.(glwts))
     F        = NUFFT3(pts, collect(wgrid.*(2*pi)), false, 1e-15, D)
-    kern     = (x,y) -> 2*Ω*sinc(2*Ω*(x[]-y[])) + Float64(x[]==y[])*1e-8
+    kern     = SincKernel(ntuple(j->Ω, getdim(pts_sa)), 1e-8)
     sk       = KernelMatrix(kern, pts_sa, pts_sa)
     pre_time = @elapsed begin
       H  = assemble_hmatrix(sk; atol=1e-8)
@@ -52,7 +80,7 @@ function solve_linsys(pts, win, Ω; method, verbose=false)
     F     = nudftmatrix(pts, wgrid, +1)
     return qr!(F, ColumnNorm())\b
   else
-    throw(error("The two presently implemented methods are method=:sketch or method=:dense."))
+    throw(error("The three presently implemented methods are method=:krylov, method=:sketch, and method=:dense."))
   end
 end
 
@@ -84,7 +112,6 @@ function glquadrule(nv::NTuple{N,Int64}, a::Float64, b::Float64) where{N}
   glquadrule(nv, ntuple(j->a, N), ntuple(j->b, N))
 end
 
-
 function segment_glquadrule(intervals, m; add=0)
   nodes_weights = map(intervals) do (aj, bj)
     glquadrule(Int(ceil(m*(bj - aj))) + add, aj, bj)
@@ -100,3 +127,4 @@ function has_empty_leaves(H)
   (rmin, rmax)  = extrema(x->HMatrices.rank(x.data), sparse_leaves)
   iszero(rmin) 
 end
+
