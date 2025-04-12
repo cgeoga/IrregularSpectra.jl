@@ -9,8 +9,6 @@ function irtrapweights(pts)
   out
 end
 
-maximum_neighbor_dist(pts::Vector{Float64}) = maximum(diff(sort(pts)))
-
 function simulate_process(pts, kernel, m; rng=Random.default_rng())
   K = [kernel(x, y) for x in pts, y in pts]
   L = cholesky!(Symmetric(K)).L
@@ -19,6 +17,8 @@ end
 
 function solve_linsys(pts, win, Ω; method, verbose=false)
   if method == :sketch
+    # TODO (cg 2025/04/12 12:23): make this wgrid construction dimension
+    # agnostic. Maybe just add a function like gen_wgrid(pts, Ω) or something.
     wgrid = range(-Ω, Ω, length=length(pts))
     b     = linsys_rhs(win, wgrid)
     F     = NUFFT3(pts, collect(wgrid.*(2*pi)), false, 1e-15)
@@ -30,8 +30,8 @@ function solve_linsys(pts, win, Ω; method, verbose=false)
     # TODO (cg 2025/03/28 18:13): think harder about what this nquad should be.
     # Yes it is cheap to crank it up, but if this can be reduced then naturally
     # it should be.
-    nquad    = max(1000, 4*max_segment_length(pts, win) + 100)
-    (wgrid, glwts) = glquadrule(nquad, a=-Ω, b=Ω)
+    nquad    = max(1000, krylov_nquad(pts, win)) 
+    (wgrid, glwts) = glquadrule(nquad, -Ω, Ω)
     rhs      = linsys_rhs(win, wgrid)
     pts_sa   = [SA[x] for x in pts]
     D        = Diagonal(sqrt.(glwts))
@@ -62,7 +62,7 @@ fouriertransform(g, wv::AbstractVector) = fouriertransform.(Ref(g), wv)
 chebnodes(n) = reverse([cos(pi*(2*k-1)/(2*n)) for k in 1:n])./2 .+ 0.5
 chebnodes(n, a, b) = chebnodes(n)*(b-a) .+ a
 
-function glquadrule(n::Int64; a=-1.0, b=1.0)
+function glquadrule(n::Int64, a, b)
   (no, wt) = gausslegendre(n)
   (bmad2, bpad2) = ((b-a)/2, (b+a)/2)
   @inbounds for j in 1:n
@@ -72,9 +72,22 @@ function glquadrule(n::Int64; a=-1.0, b=1.0)
   (no, wt)
 end
 
+function glquadrule(nv::NTuple{N, Int64}, a::NTuple{N,Float64},
+                    b::NTuple{N,Float64}) where{N}
+  no_wt_v = [glquadrule(nv[j], a[j], b[j]) for j in 1:N]
+  nodes   = vec(SVector{N,Float64}.(Iterators.product(getindex.(no_wt_v, 1)...)))
+  weights = vec(prod.(Iterators.product(getindex.(no_wt_v, 2)...)))
+  (nodes, weights)
+end
+
+function glquadrule(nv::NTuple{N,Int64}, a::Float64, b::Float64) where{N}
+  glquadrule(nv, ntuple(j->a, N), ntuple(j->b, N))
+end
+
+
 function segment_glquadrule(intervals, m; add=0)
   nodes_weights = map(intervals) do (aj, bj)
-    glquadrule(Int(ceil(m*(bj - aj))) + add, a=aj, b=bj)
+    glquadrule(Int(ceil(m*(bj - aj))) + add, aj, bj)
   end
   (reduce(vcat, getindex.(nodes_weights, 1)), 
    reduce(vcat, getindex.(nodes_weights, 2)))

@@ -11,12 +11,15 @@ abstract type ImplicitWindow end
 # window_support(win) -> Tuple{Float64, Float64}
 # bandwidth(win) -> Float64
 # linsys_rhs(win, frequency_grid) -> Vector{ComplexF64}
-# max_segment_length(pts, win) -> Int64
 #
 # ADDITIONALLY, for a ClosedFormWindow:
 #
 # (win::YourWindow)(x) -> Float64                                      (scalar evaluation)
 # IrregularSpectra.fouriertransform(win::YourWindow, ω) -> ComplexF64  (scalar FT)
+#
+# ADDITIONALLY, if you want to use the Krylov weight computation:
+#
+# krylov_nquad(pts, win) -> Int64
 
 
 #
@@ -45,7 +48,7 @@ end
 
 bandwidth(ka::Kaiser) = (ka.beta/(pi*abs(ka.b-ka.a)))
 
-max_segment_length(pts, ka::Kaiser) = length(pts)
+krylov_nquad(pts, ka::Kaiser) = 4*length(pts) + 100
 
 # on [-1/2, 1/2]!
 function unitkaiser(x, beta)
@@ -105,10 +108,11 @@ window_support(p::Prolate1D) = (minimum(minimum, p.intervals),
 
 bandwidth(p::Prolate1D) = p.bandwidth
 
-function max_segment_length(pts, p::Prolate1D)
-  maximum(p.intervals) do (aj, bj)
+function krylov_nquad(pts, p::Prolate1D)
+  out = maximum(p.intervals) do (aj, bj)
     count(x-> aj <= x <= bj, pts)
   end
+  4*out + 100
 end
 
 function linsys_rhs(p::Prolate1D, wgrid::AbstractVector{Float64})

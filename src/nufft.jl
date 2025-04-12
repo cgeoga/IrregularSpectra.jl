@@ -124,7 +124,7 @@ end
 function FastSinc(s, bw=1.0; D=I)
   issymmetric(D) || throw(error("For now, the conjugation matrix D must be symmetric."))
   quadn    = Int(ceil(2*bw*maximum(abs, s)*4 + 50))
-  (no, wt) = glquadrule(quadn, a=-0.5, b=0.5)
+  (no, wt) = glquadrule(quadn, -0.5, 0.5)
   FastSinc(D, s.*(2*pi*bw), no, wt)
 end
 
