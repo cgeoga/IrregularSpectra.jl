@@ -52,6 +52,11 @@ getdim(pts::Vector{SVector{D,Float64}}) where{D} = 1
 # Krylov solver (for example), maybe it should just be a hard dependency.
 abstract type LinearSystemSolver end
 
+# For IrregularSpectraLowRankApproxExt:
+struct SketchSolver <: LinearSystemSolver 
+  tol::Float64
+end
+
 struct DenseSolver <: LinearSystemSolver  end
 
 function solve_linsys(pts, win, Ω, solver::DenseSolver; verbose=false)
@@ -59,20 +64,6 @@ function solve_linsys(pts, win, Ω, solver::DenseSolver; verbose=false)
   b     = linsys_rhs(win, wgrid)
   F     = nudftmatrix(pts, wgrid, +1)
   qr!(F, ColumnNorm())\b
-end
-
-struct SketchSolver <: LinearSystemSolver 
-  tol::Float64
-end
-
-function solve_linsys(pts, win, Ω, solver::SketchSolver; verbose=false)
-    wgrid = gen_wgrid(pts, Ω) 
-    b     = linsys_rhs(win, wgrid)
-    F     = NUFFT3(pts, collect(wgrid.*(2*pi)), false, 1e-15)
-    Fo    = LinearOperator(F)
-    Fqr   = pqrfact(Fo; rtol=solver.tol)
-    verbose && @printf "Rank of reduced QR: %i\n" size(Fqr.Q, 2)
-    Fqr\b
 end
 
 struct KrylovSolver <: LinearSystemSolver 

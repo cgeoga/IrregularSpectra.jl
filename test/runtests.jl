@@ -1,5 +1,5 @@
 
-using Test, LinearAlgebra, StableRNGs, IrregularSpectra
+using Test, LinearAlgebra, StableRNGs, IrregularSpectra, LowRankApprox
 using IrregularSpectra.FINUFFT
 using IrregularSpectra.StaticArrays
 

@@ -1,3 +1,4 @@
+
 name = "IrregularSpectra"
 uuid = "44cbfef1-da7d-499c-871f-40d6f2b94496"
 authors = ["Chris Geoga <geoga@wisc.edu>", "Paul Beckman <paul.beckman@cims.nyu.edu>"]
@@ -11,7 +12,6 @@ FastGaussQuadrature = "442a2c76-b920-505d-bb47-c5924d526838"
 HMatrices = "8646bddf-ab1c-4fa7-9c51-ba187d647618"
 Krylov = "ba0b0d4f-ebba-5204-a429-3ac8c609bfb7"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-LowRankApprox = "898213cb-b102-5a47-900c-97e73b919f73"
 NearestNeighbors = "b8a86587-4115-5ab1-83bc-aa920d37bbce"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 QuadGK = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
@@ -20,6 +20,12 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
+[weakdeps]
+LowRankApprox = "898213cb-b102-5a47-900c-97e73b919f73"
+
+[extensions]
+IrregularSpectraLowRankApproxExt = "LowRankApprox"
+
 [compat]
 ArnoldiMethod = "0.4.0"
 Bessels = "0.2"
@@ -27,8 +33,8 @@ FINUFFT = "3.3.1"
 FastGaussQuadrature = "1"
 HMatrices = "0.2"
 Krylov = "0.9"
-LowRankApprox = "0.5.4"
 NearestNeighbors = "0.4.21"
 QuadGK = "2.11"
 StaticArrays = "1.9"
 julia = "1.10"
+
