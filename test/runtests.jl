@@ -1,5 +1,6 @@
 
-using Test, LinearAlgebra, StableRNGs, IrregularSpectra, LowRankApprox
+using Test, LinearAlgebra, StableRNGs, IrregularSpectra
+using LowRankApprox, HMatrices # extensions
 using IrregularSpectra.FINUFFT
 using IrregularSpectra.StaticArrays
 

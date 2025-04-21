@@ -66,9 +66,27 @@ function solve_linsys(pts, win, Ω, solver::DenseSolver; verbose=false)
   qr!(F, ColumnNorm())\b
 end
 
-struct KrylovSolver <: LinearSystemSolver 
-  preconditioner::Symbol
+abstract type KrylovPreconditioner end
+
+struct HMatrixPreconditioner <: KrylovPreconditioner
+  atol::Float64   # 1e-8
+  luatol::Float64 # 1e-8
+end
+
+struct CholeskyPreconditioner <: KrylovPreconditioner end
+
+struct KrylovSolver{P} <: LinearSystemSolver where{P}
+  preconditioner::P
   λ::Float64
+end
+
+function krylov_preconditioner(pts_sa, Ω, solver::KrylovSolver{CholeskyPreconditioner};
+                               verbose=false)
+  kern = SincKernel(ntuple(j->Ω, getdim(pts_sa)), solver.λ)
+  M = threaded_km_assembly(kern, pts_sa)
+  pre_time = @elapsed Mf = cholesky!(M)
+  verbose && @printf "Preconditioner assembly time: %1.3fs\n" pre_time
+  Mf
 end
 
 function solve_linsys(pts, win, Ω, solver::KrylovSolver; verbose=false)
@@ -80,28 +98,33 @@ function solve_linsys(pts, win, Ω, solver::KrylovSolver; verbose=false)
   pts_sa   = static_points(pts)
   D        = Diagonal(sqrt.(glwts))
   F        = NUFFT3(pts, collect(wgrid.*(2*pi)), false, 1e-15, D)
-  kern     = SincKernel(ntuple(j->Ω, getdim(pts_sa)), solver.λ)
-  pre      = if solver.preconditioner == :hmatrix
-    sk       = KernelMatrix(kern, pts_sa, pts_sa)
-    pre_time = @elapsed begin
-      H  = assemble_hmatrix(sk; atol=1e-8)
-      Hf = has_empty_leaves(H) ? I : lu(H; atol=1e-8)
-    end
-    verbose && @printf "Preconditioner assembly time: %1.3fs\n" pre_time
-    Hf
-  elseif solver.preconditioner == :cholesky
-    M = threaded_km_assembly(kern, pts_sa)
-    pre_time = @elapsed Mf = cholesky!(M)
-    verbose && @printf "Preconditioner assembly time: %1.3fs\n" pre_time
-    Mf
-  end
+  pre      = krylov_preconditioner(pts_sa, Ω, solver; verbose=verbose)
   vrb = verbose ? 10 : 0
   lsmr(F, D*rhs, N=pre, verbose=vrb, etol=0.0, axtol=0.0, atol=1e-11, 
        btol=0.0, rtol=1e-10, conlim=Inf, ldiv=true, itmax=500)[1]
 
 end
 
-function solve_linsys(pts, win, Ω, solver=KrylovSolver(:hmatrix, 1e-8); verbose=false)
+function default_solver(pts)
+  if length(pts) > 5_000
+    @warn """For large datasets, the default solver (Krylov with a dense Cholesky preconditioner)
+    can have a long runtime. Consider ]add-ing the weakdep HMatrices and using the following
+    solver instead:
+
+    ```
+      using HMatrices
+      pre = HMatrixPreconditioner(1e-8, 1e-8)
+      solver = KrylovSolver(pre, 1e-8)
+
+      estimate_sdf([...], solver=solver, [...])
+    ```
+
+    """
+  end
+  KrylovSolver(CholeskyPreconditioner(), 1e-8)
+end
+
+function solve_linsys(pts, win, Ω, solver=default_solver(pts); verbose=false)
   solve_linsys(pts, win, Ω, solver; verbose=verbose)
 end
 

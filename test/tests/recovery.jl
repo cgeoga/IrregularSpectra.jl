@@ -23,12 +23,14 @@ ix_out = findall(x->abs(x) > IrregularSpectra.bandwidth(win), wgrid)
 
 # test 3: Krylov variant. This one has to be a bit more slack, because asking an
 # iterative solver to give you 1e-20 instead of 1e-16 is pretty hard.
-wts_kry = window_quadrature_weights(pts, win, solver=KrylovSolver(:hmatrix, 1e-8))[2]
+hm_pre  = HMatrixPreconditioner(1e-8, 1e-8)
+wts_kry = window_quadrature_weights(pts, win, solver=KrylovSolver(hm_pre, 1e-8))[2]
 rec_kry = abs2.(F*wts_kry)
 @test maximum(rec_kry[ix_out]) < 1e-15
 
 # test 4: Krylov variant, straight Cholesky of the sinc matrix as preconditioner.
-wts_kry = window_quadrature_weights(pts, win, solver=KrylovSolver(:cholesky, 1e-8))[2]
-rec_kry = abs2.(F*wts_kry)
+chol_pre = CholeskyPreconditioner()
+wts_kry  = window_quadrature_weights(pts, win, solver=KrylovSolver(chol_pre, 1e-8))[2]
+rec_kry  = abs2.(F*wts_kry)
 @test maximum(rec_kry[ix_out]) < 1e-15
 

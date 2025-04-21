@@ -4,9 +4,9 @@ module IrregularSpectra
   using Random, Printf, Statistics, LinearAlgebra, SparseArrays
 
   # external pacakges (actual dependencies):
-  using QuadGK, FINUFFT, Bessels, FastGaussQuadrature, ArnoldiMethod, Krylov, StaticArrays, HMatrices
+  using QuadGK, FINUFFT, Bessels, FastGaussQuadrature, Krylov, StaticArrays
 
-  export DenseSolver, SketchSolver, KrylovSolver
+  export DenseSolver, SketchSolver, KrylovSolver, CholeskyPreconditioner, HMatrixPreconditioner
   export window_quadrature_weights, estimate_sdf, Kaiser, matern_frequency_selector, Prolate1D
 
   include("utils.jl")

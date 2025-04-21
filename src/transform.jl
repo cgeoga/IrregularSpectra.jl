@@ -69,7 +69,7 @@ may save you on the cost of recomputing weights, but it may mean your ultimate
 function and returns both weights and the highest ``safe" frequency to estimate
 based on a user-provided tolerance for the relative size in aliasing bias.
 """
-function window_quadrature_weights(pts::Vector{Float64}, g; solver=KrylovSolver(:hmatrix, 1e-8),
+function window_quadrature_weights(pts::Vector{Float64}, g; solver=default_solver(pts),
                                    Ω=default_Ω(pts, g), max_wt_norm=Inf, 
                                    min_Ω=0.05*Ω, reduction_factor=0.9, verbose=true)
   wts    = solve_linsys(pts, g, Ω, solver, verbose=verbose)
