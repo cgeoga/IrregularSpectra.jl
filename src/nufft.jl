@@ -5,23 +5,6 @@ function nudftmatrix(s1, s2, sgn; T=Float64)
   [cispi(2*sgn*T(dot(sj, sk))) for sj in s1, sk in s2]
 end
 
-# A matrix-free but O(n*m) NUDFT application. 
-function nft(pts, fgrid, v; sgn::Int)
-  sgn in (-1, 1) || throw(error("Sign arg needs to be in (-1, 1)."))
-  (n1, n2) = (length(pts), length(fgrid))
-  out      = zeros(ComplexF64, length(fgrid))
-  sign2    = 2*sgn
-  @inbounds begin
-    Threads.@threads for j in eachindex(fgrid)
-      fj = fgrid[j]
-      @simd for k in eachindex(pts)
-        out[j] += cispi(sign2*dot(pts[k], fgrid[j]))*v[k]
-      end
-    end
-  end
-  out
-end
-
 # D is an optional addition so that this operator represents the action
 # v ↦ D*(F*v).
 struct NUFFT3{T}

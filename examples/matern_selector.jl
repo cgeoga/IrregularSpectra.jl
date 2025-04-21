@@ -14,7 +14,7 @@ sims = let kernel = (x,y)->IrregularSpectra.matern_cov(x-y, (1.0, 0.1, 0.65))
 end
 
 # Compute the estimator, which we'll do at just a few points for demonstration:
-window      = Kaiser(20.0, a=a, b=b)
+window      = Kaiser(6.0, a=a, b=b)
 (wts, fmax) = matern_frequency_selector(pts, window, smoothness=0.5, alias_tol=0.1)
 est_freqs   = range(0.0, fmax, length=30)
 est         = estimate_sdf(pts, sims, window, est_freqs; wts=wts)

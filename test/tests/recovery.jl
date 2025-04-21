@@ -3,9 +3,9 @@
 # to sufficient accuracy.
 
 pts = sort(rand(StableRNG(123), 1000))
-win = Kaiser(20.0)
+win = Kaiser(6.0)
 Ω   = IrregularSpectra.default_Ω(pts, win)
-wts = window_quadrature_weights(pts, win; method=:sketch)[2]
+wts = window_quadrature_weights(pts, win, solver=SketchSolver(1e-14))[2]
 
 wgrid  = range(-Ω, Ω, length=2*length(pts))
 F      = IrregularSpectra.nudftmatrix(wgrid, pts, -1)
@@ -23,7 +23,12 @@ ix_out = findall(x->abs(x) > IrregularSpectra.bandwidth(win), wgrid)
 
 # test 3: Krylov variant. This one has to be a bit more slack, because asking an
 # iterative solver to give you 1e-20 instead of 1e-16 is pretty hard.
-wts_kry = window_quadrature_weights(pts, win; method=:krylov)[2]
+wts_kry = window_quadrature_weights(pts, win, solver=KrylovSolver(:hmatrix, 1e-8))[2]
+rec_kry = abs2.(F*wts_kry)
+@test maximum(rec_kry[ix_out]) < 1e-15
+
+# test 4: Krylov variant, straight Cholesky of the sinc matrix as preconditioner.
+wts_kry = window_quadrature_weights(pts, win, solver=KrylovSolver(:cholesky, 1e-8))[2]
 rec_kry = abs2.(F*wts_kry)
 @test maximum(rec_kry[ix_out]) < 1e-15
 

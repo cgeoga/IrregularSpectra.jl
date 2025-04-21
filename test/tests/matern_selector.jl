@@ -13,7 +13,7 @@ sims = let kernel = (x,y)->IrregularSpectra.matern_cov(x-y, (1.0, 0.1, 0.65))
   IrregularSpectra.simulate_process(pts, kernel, m; rng=StableRNG(123))
 end
 
-window      = Kaiser(20.0, a=a, b=b)
+window      = Kaiser(6.0, a=a, b=b)
 (wts, fmax) = matern_frequency_selector(pts, window, smoothness=0.5, alias_tol=0.1; verbose=false)
 est_freqs   = range(0.0, fmax, length=30)
 est         = estimate_sdf(pts, sims, window, est_freqs; wts=wts)

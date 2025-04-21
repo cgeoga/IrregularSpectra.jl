@@ -40,11 +40,12 @@ end
 window_support(ka::Kaiser) = (ka.a, ka.b)
 
 """
-Kaiser(beta; a, b)
+Kaiser(W; a, b)
 
-A Kaiser window function with shape parameter beta and support on [a, b].
+A Kaiser window function with (half-)bandwidth W and support on [a, b].
 """
-function Kaiser(beta; a=0.0, b=1.0) 
+function Kaiser(W; a=0.0, b=1.0) 
+  beta   = W*pi*abs(b-a)
   (s, c) = (1/(b-a), -a/(b-a)-1/2)
   nr     = sqrt(quadgk(x->unitkaiser(s*x + c, beta)^2, a, b, atol=1e-10)[1])
   Kaiser(beta, nr, a, b)
@@ -109,6 +110,14 @@ end
 
 bandwidth(p::Prolate1D) = p.bandwidth
 
+slepkernel(xmy::Float64, bw::Float64) = sinc(2*bw*xmy)
+
+function slepkernel(xmy::SVector{2,Float64}, bw::Float64)
+  nx = 2*pi*bw*norm(xmy)
+  iszero(nx) && return 0.5
+  Bessels.besselj1(nx)/nx
+end
+
 function krylov_nquad(pts, p::Prolate1D)
   out = maximum(p.intervals) do (aj, bj)
     count(x-> aj <= x <= bj, pts)
@@ -133,53 +142,33 @@ function prolate_interpolate(p::Prolate1D, coarse_nodes, coarse_weights,
   # TODO (cg 2025/03/28 18:16): change FastSinc to not be hard-coded symmetric
   # to speed this up (although the point is that this matrix is very
   # rectangular, so not crucial).
-  S = [sinc(2*p.bandwidth*(x-y)) for y in fine_nodes, x in coarse_nodes]
+  S = [slepkernel(x-y, p.bandwidth) for y in fine_nodes, x in coarse_nodes]
   s = S*(coarse_values.*coarse_weights)
   s ./= sqrt(dot(fine_weights, abs2.(s)))
 end
 
-function prolate_timedomain(p::Prolate1D, m; maxsize=5000)
-  (nodes, weights) = segment_glquadrule(p.intervals, m)
-  length(nodes) > maxsize && throw(error("Size limit reached for exact prolate computation. Perhaps your refinement has failed?"))
-  sqrtwts = sqrt.(weights)
-  Dw = Diagonal(sqrtwts)
-  A  = Symmetric([sinc(2*p.bandwidth*(nodes[j] - nodes[k]))*sqrtwts[j]*sqrtwts[k]
-                  for j in eachindex(nodes), k in eachindex(nodes)])
+function prolate_fromrule(w, nodes, weights)
+  M    = [slepkernel(tj-tk, w) for tj in nodes, tk in nodes]
+  Dw   = Diagonal(sqrt.(weights))
+  A    = Symmetric(Dw*M*Dw)
   Ae   = eigen!(A)
   slep = real(Ae.vectors[:,end])
   ldiv!(Dw, slep)
   slep ./= sqrt(dot(weights, abs2.(slep)))
   slep .*= sign(slep[findmax(abs, slep)[2]])
-  (nodes, weights, slep)
+  slep
+end
+
+function prolate_timedomain(p::Prolate1D, m; maxsize=5000)
+  (nodes, weights) = segment_glquadrule(p.intervals, m)
+  length(nodes) > maxsize && throw(error("Size limit reached for exact prolate computation. Perhaps your refinement has failed?"))
+  (nodes, weights, prolate_fromrule(p.bandwidth, nodes, weights))
 end
 
 function prolate_minimal_m(p::Prolate1D)
   minimum(p.intervals) do (aj, bj)
     2*p.bandwidth*(bj - aj)*4
   end
-end
-
-# An automatically refining alternative.
-#
-# TODO (cg 2025/03/28 17:47): for larger bandwidths, I think this is just not
-# stable because the eigenvalue problem itself seems very numerically
-# challenging. I think we are getting a linear combination of effectively
-# equally concentrated vectors, but it is throwing off these pointwise
-# assessments of convergence.
-function prolate_timedomain(p::Prolate1D; m_init=prolate_minimal_m(p), tol=0.0025)
-  (nodes_m,  weights_m,  slep_m)  = prolate_timedomain(p, m)
-  (nodes_2m, weights_2m, slep_2m) = prolate_timedomain(p, 2*m)
-  slep_itp = prolate_interpolate(p, nodes_m, weights_m, slep_m, nodes_2m, weights_2m)
-  while maximum(abs, slep_itp - slep_2m) > tol
-    m *= 2
-    nodes_m   = nodes_2m
-    weights_m = weights_2m
-    slep_m    = slep_2m
-    (nodes_2m, weights_2m, slep_2m) = prolate_timedomain(p, 2*m)
-    slep_itp  = prolate_interpolate(p, nodes_m, weights_m, slep_m, 
-                                    nodes_2m, weights_2m)
-  end
-  (nodes_2m, weights_2m, slep_2m) 
 end
 
 function default_Ω(pts, g::Prolate1D; check=false)

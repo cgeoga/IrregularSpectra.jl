@@ -6,6 +6,7 @@ module IrregularSpectra
   # external pacakges (actual dependencies):
   using QuadGK, LowRankApprox, FINUFFT, Bessels, FastGaussQuadrature, ArnoldiMethod, Krylov, StaticArrays, HMatrices
 
+  export DenseSolver, SketchSolver, KrylovSolver
   export window_quadrature_weights, estimate_sdf, Kaiser, matern_frequency_selector, Prolate1D
 
   include("utils.jl")

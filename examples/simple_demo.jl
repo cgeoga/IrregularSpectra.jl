@@ -15,7 +15,7 @@ end
 # Compute the estimator, which we'll do at just a few points for demonstration:
 Ω         = 0.5*n/(4*(b-a))
 est_freqs = range(0.0, Ω/2, length=30)
-window    = Kaiser(20.0, a=a, b=b)
+window    = Kaiser(6.0, a=a, b=b)
 est       = estimate_sdf(pts, sims, window, est_freqs; Ω=Ω)
 
 # Brief inspection of the output:

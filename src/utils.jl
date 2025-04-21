@@ -46,42 +46,72 @@ end
 
 getdim(pts::Vector{SVector{D,Float64}}) where{D} = 1
 
-function solve_linsys(pts, win, Ω; method, verbose=false)
-  if method == :sketch
+# TODO (cg 2025/04/21 12:26): At some point, it would be nice to split each of
+# these things out into weakdeps so that the dependencies of this package can be
+# smaller. But with that said, if users will almost always want to pull in the
+# Krylov solver (for example), maybe it should just be a hard dependency.
+abstract type LinearSystemSolver end
+
+struct DenseSolver <: LinearSystemSolver  end
+
+function solve_linsys(pts, win, Ω, solver::DenseSolver; verbose=false)
+  wgrid = range(-Ω, Ω, length=length(pts))
+  b     = linsys_rhs(win, wgrid)
+  F     = nudftmatrix(pts, wgrid, +1)
+  qr!(F, ColumnNorm())\b
+end
+
+struct SketchSolver <: LinearSystemSolver 
+  tol::Float64
+end
+
+function solve_linsys(pts, win, Ω, solver::SketchSolver; verbose=false)
     wgrid = gen_wgrid(pts, Ω) 
     b     = linsys_rhs(win, wgrid)
     F     = NUFFT3(pts, collect(wgrid.*(2*pi)), false, 1e-15)
     Fo    = LinearOperator(F)
-    Fqr   = pqrfact(Fo; rtol=1e-14)
+    Fqr   = pqrfact(Fo; rtol=solver.tol)
     verbose && @printf "Rank of reduced QR: %i\n" size(Fqr.Q, 2)
-    return Fqr\b
-  elseif method == :krylov
-    # TODO (cg 2025/03/28 18:13): think harder about what this nquad should be.
-    # Yes it is cheap to crank it up, but if this can be reduced then naturally
-    # it should be.
-    (wgrid, glwts) = glquadrule(krylov_nquad(pts, win), -Ω, Ω)
-    rhs      = linsys_rhs(win, wgrid)
-    pts_sa   = static_points(pts)
-    D        = Diagonal(sqrt.(glwts))
-    F        = NUFFT3(pts, collect(wgrid.*(2*pi)), false, 1e-15, D)
-    kern     = SincKernel(ntuple(j->Ω, getdim(pts_sa)), 1e-8)
+    Fqr\b
+end
+
+struct KrylovSolver <: LinearSystemSolver 
+  preconditioner::Symbol
+  λ::Float64
+end
+
+function solve_linsys(pts, win, Ω, solver::KrylovSolver; verbose=false)
+  # TODO (cg 2025/03/28 18:13): think harder about what this nquad should be.
+  # Yes it is cheap to crank it up, but if this can be reduced then naturally
+  # it should be.
+  (wgrid, glwts) = glquadrule(krylov_nquad(pts, win), -Ω, Ω)
+  rhs      = linsys_rhs(win, wgrid)
+  pts_sa   = static_points(pts)
+  D        = Diagonal(sqrt.(glwts))
+  F        = NUFFT3(pts, collect(wgrid.*(2*pi)), false, 1e-15, D)
+  kern     = SincKernel(ntuple(j->Ω, getdim(pts_sa)), solver.λ)
+  pre      = if solver.preconditioner == :hmatrix
     sk       = KernelMatrix(kern, pts_sa, pts_sa)
     pre_time = @elapsed begin
       H  = assemble_hmatrix(sk; atol=1e-8)
       Hf = has_empty_leaves(H) ? I : lu(H; atol=1e-8)
     end
     verbose && @printf "Preconditioner assembly time: %1.3fs\n" pre_time
-    vrb = verbose ? 10 : 0
-    return lsmr(F, D*rhs, N=Hf, verbose=vrb, etol=0.0, axtol=0.0, atol=1e-11, 
-                btol=0.0, rtol=1e-10, conlim=Inf, ldiv=true, itmax=500)[1]
-  elseif method == :dense
-    wgrid = range(-Ω, Ω, length=length(pts))
-    b     = linsys_rhs(win, wgrid)
-    F     = nudftmatrix(pts, wgrid, +1)
-    return qr!(F, ColumnNorm())\b
-  else
-    throw(error("The three presently implemented methods are method=:krylov, method=:sketch, and method=:dense."))
+    Hf
+  elseif solver.preconditioner == :cholesky
+    M = threaded_km_assembly(kern, pts_sa)
+    pre_time = @elapsed Mf = cholesky!(M)
+    verbose && @printf "Preconditioner assembly time: %1.3fs\n" pre_time
+    Mf
   end
+  vrb = verbose ? 10 : 0
+  lsmr(F, D*rhs, N=pre, verbose=vrb, etol=0.0, axtol=0.0, atol=1e-11, 
+       btol=0.0, rtol=1e-10, conlim=Inf, ldiv=true, itmax=500)[1]
+
+end
+
+function solve_linsys(pts, win, Ω, solver=KrylovSolver(:hmatrix, 1e-8); verbose=false)
+  solve_linsys(pts, win, Ω, solver; verbose=verbose)
 end
 
 # generic broadcasted Fourier transform.
@@ -121,6 +151,16 @@ function segment_glquadrule(intervals, m; add=0)
 end
 
 segment_glquadrule_nyquist(intervals, Ω) = segment_glquadrule(intervals, Ω*4, add=50)
+
+function threaded_km_assembly(kernel::K, pts) where{K}
+  out = Matrix{Float64}(undef, length(pts), length(pts))
+  Threads.@threads for k in 1:length(pts)
+    for j in 1:k
+      out[j,k] = kernel(pts[j], pts[k])
+    end
+  end
+  Symmetric(out, :U)
+end
 
 function has_empty_leaves(H)
   sparse_leaves = filter(x->HMatrices.isadmissible(x), HMatrices.leaves(H))
