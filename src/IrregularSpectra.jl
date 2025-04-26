@@ -7,7 +7,7 @@ module IrregularSpectra
   using QuadGK, FINUFFT, Bessels, FastGaussQuadrature, Krylov, StaticArrays
 
   export DenseSolver, SketchSolver, KrylovSolver, CholeskyPreconditioner, HMatrixPreconditioner
-  export window_quadrature_weights, estimate_sdf, Kaiser, Prolate1D, Sine
+  export window_quadrature_weights, estimate_sdf, Kaiser, Prolate1D, Sine, TensorProduct2DWindow
 
   include("utils.jl")
 

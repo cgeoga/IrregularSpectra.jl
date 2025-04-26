@@ -127,6 +127,17 @@ that offers a truly `O(n \log n)` preconditioner, and so you can still estimate
 SDFs from hundreds of thousands of points in seconds. See
 `./example/big_demo.jl` for an example.
 
+## 2D process estimation
+
+Support for multi-dimensional processes is ongoing. For now, the only
+multi-dimensional window that is implemented and exported is a tensor product of
+1D windows. Additionally, the preconditioner strategy used in the Krylov methods
+needs to be tuned. But with all of that said, you can see the entire workflow in
+action in `./examples/simple_demo_2d.jl`. In particular, other than the window
+construction the estimation interface is completely dimension-agnostic. This is
+a primary focus of development and you should expect both the window tooling and
+efficiency in the linear system solver to improve in the next couple months.
+
 <!---
 ## A heuristic frequency selector
 
@@ -189,6 +200,10 @@ features to expect in the near future:
   and balancing the tradeoff between reducing the norm of the weights and the
   off-lobe power in the spectral window. This is again something we have
   implemented and all that is left to do is to polish it.
+- Fixing the preconditioner in 2+D. This may end up being a simple fix or a
+  different strategy may end up being preferable in higher dimensions. It isn't
+  terrible now, but it can take as much as 300 iterations to converge instead of
+  30, which is the norm in 1D. So clearly there is room for improvement.
 - An interface for providing arbitrary points in arbitrary dimensions and
   obtaining prolate function evaluations and right-hand sides for weight
   calculation. This is done _except_ for the step of a designing a robust function

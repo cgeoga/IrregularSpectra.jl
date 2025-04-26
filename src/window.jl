@@ -17,10 +17,6 @@ abstract type ImplicitWindow end
 # (win::YourWindow)(x) -> Float64                                      (scalar evaluation)
 # IrregularSpectra.fouriertransform(win::YourWindow, ω) -> ComplexF64  (scalar FT)
 #
-# ADDITIONALLY, if you want to use the Krylov weight computation:
-#
-# krylov_nquad(pts, win) -> Int64
-#
 # OPTIONALLY, if you want to use the standard default_Ω function:
 #
 # window_support(win) -> Tuple{Float64, Float64}
@@ -52,8 +48,6 @@ function Kaiser(W; a=0.0, b=1.0)
 end
 
 bandwidth(ka::Kaiser) = (ka.beta/(pi*abs(ka.b-ka.a)))
-
-krylov_nquad(pts, ka::Kaiser) = 4*length(pts) + 100
 
 # on [-1/2, 1/2]!
 function unitkaiser(x, beta)
@@ -118,7 +112,7 @@ function slepkernel(xmy::SVector{2,Float64}, bw::Float64)
   Bessels.besselj1(nx)/nx
 end
 
-function krylov_nquad(pts, p::Prolate1D)
+function krylov_nquad(pts::Vector{Float64}, p::Prolate1D)
   out = maximum(p.intervals) do (aj, bj)
     count(x-> aj <= x <= bj, pts)
   end
@@ -171,7 +165,7 @@ function prolate_minimal_m(p::Prolate1D)
   end
 end
 
-function default_Ω(pts, g::Prolate1D; check=false)
+function default_Ω(pts::Vector{Float64}, g::Prolate1D; check=false)
   minimum(g.intervals) do (aj, bj)
     nj = count(x-> aj <= x <= bj, pts)
     0.8*nj/(4*(bj - aj))
@@ -187,7 +181,7 @@ struct Sine <: ClosedFormWindow
   b::Float64
 end
 
-function default_Ω(pts, sw::Sine)
+function default_Ω(pts::Vector{Float64}, sw::Sine)
   @info "Since the sine window is not very concentrated, the default Ω is slightly lower than with windows like the Kaiser. But you can often resolve higher Ω than this default without huge blowup, so feel free to experiment with manually setting Ω yourself." maxlog=1
   0.7*length(pts)/(4*(sw.b-sw.a))
 end
@@ -222,5 +216,28 @@ end
 
 linsys_rhs(sw::Sine, fgrid) = fouriertransform.(Ref(sw), fgrid)
 
-krylov_nquad(pts, sw::Sine) = 4*length(pts) + 100
+#
+# Tensor product of two 1D windows:
+#
+
+struct TensorProduct2DWindow{W1,W2}
+  s1::W1
+  s2::W2
+end
+
+function linsys_rhs(sp::TensorProduct2DWindow, fgrid)
+  unique_f1 = sort(unique(getindex.(fgrid, 1)))
+  unique_f2 = sort(unique(getindex.(fgrid, 2)))
+  w1_vals   = Dict(zip(unique_f1, linsys_rhs(sp.s1, unique_f1)))
+  w2_vals   = Dict(zip(unique_f2, linsys_rhs(sp.s2, unique_f2)))
+  [w1_vals[fj[1]]*w2_vals[fj[2]] for fj in fgrid]
+end
+
+# TODO (cg 2025/04/26 13:44): figure out a better default Ω here that is safe
+# enough to give weights with a decent norm but also not needlessly cautious.
+function default_Ω(pts::Vector{SVector{2,Float64}}, sp::TensorProduct2DWindow)
+  mΩ = min(default_Ω(getindex.(pts, 1), sp.s1), default_Ω(getindex.(pts, 2), sp.s2))
+  Ω  = sqrt(mΩ)/2
+  (Ω, Ω)
+end
 

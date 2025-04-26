@@ -34,6 +34,8 @@ struct SincKernel{D} <: Function
   perturb::Float64
 end
 
+SincKernel(Ω::Float64, perturb::Float64) = SincKernel((Ω,), perturb)
+
 function (sk::SincKernel{D})(x::SVector{D,Float64}, y::SVector{D,Float64}) where{D}
   xmy  = x-y
   out  = prod(1:D) do j
@@ -59,6 +61,7 @@ end
 
 struct DenseSolver <: LinearSystemSolver  end
 
+# TODO (cg 2025/04/26 13:34): update this to be dimension-agnostic.
 function solve_linsys(pts, win, Ω, solver::DenseSolver; verbose=false)
   wgrid = range(-Ω, Ω, length=length(pts))
   b     = linsys_rhs(win, wgrid)
@@ -80,9 +83,15 @@ struct KrylovSolver{P} <: LinearSystemSolver where{P}
   λ::Float64
 end
 
+# default method:
+krylov_nquad(pts::Vector{Float64}, win) = 4*length(pts) + 100
+function krylov_nquad(pts::Vector{SVector{D,Float64}}, win) where{D}
+  ntuple(_->Int(ceil(sqrt(4*length(pts)))) + 10, D)
+end
+
 function krylov_preconditioner(pts_sa, Ω, solver::KrylovSolver{CholeskyPreconditioner};
                                verbose=false)
-  kern = SincKernel(ntuple(j->Ω, getdim(pts_sa)), solver.λ)
+  kern = SincKernel(Ω, solver.λ)
   M = threaded_km_assembly(kern, pts_sa)
   pre_time = @elapsed Mf = cholesky!(M)
   verbose && @printf "Preconditioner assembly time: %1.3fs\n" pre_time
@@ -93,7 +102,7 @@ function solve_linsys(pts, win, Ω, solver::KrylovSolver; verbose=false)
   # TODO (cg 2025/03/28 18:13): think harder about what this nquad should be.
   # Yes it is cheap to crank it up, but if this can be reduced then naturally
   # it should be.
-  (wgrid, glwts) = glquadrule(krylov_nquad(pts, win), -Ω, Ω)
+  (wgrid, glwts) = glquadrule(krylov_nquad(pts, win), .-Ω, Ω)
   rhs      = linsys_rhs(win, wgrid)
   pts_sa   = static_points(pts)
   D        = Diagonal(sqrt.(glwts))

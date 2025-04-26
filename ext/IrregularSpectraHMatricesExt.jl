@@ -15,7 +15,7 @@ module IrregularSpectraHMatricesExt
 
   function IrregularSpectra.krylov_preconditioner(pts_sa, Ω, solver::KrylovSolver{HMatrixPreconditioner}; 
                                                   verbose=false)
-    kern     = SincKernel(ntuple(j->Ω, getdim(pts_sa)), solver.λ)
+    kern     = SincKernel(Ω, solver.λ)
     sk       = KernelMatrix(kern, pts_sa, pts_sa)
     pre_time = @elapsed begin
       H  = assemble_hmatrix(sk; atol=1e-8)
