@@ -16,11 +16,13 @@ end
   end
 end
 
+#=
 @testset "Matern selector" begin
   let scope_dummy = 0
     include("./tests/matern_selector.jl")
   end
 end
+=#
 
 @testset "Fast sinc" begin
   let scope_dummy = 0

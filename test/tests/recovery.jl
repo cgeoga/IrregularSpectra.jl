@@ -10,7 +10,7 @@ wts = window_quadrature_weights(pts, win, solver=SketchSolver(1e-14))[2]
 wgrid  = range(-Ω, Ω, length=2*length(pts))
 F      = IrregularSpectra.nudftmatrix(wgrid, pts, -1)
 rec    = abs.(F*wts)
-should = abs.(IrregularSpectra.fouriertransform(win, wgrid)) 
+should = abs.(IrregularSpectra.fouriertransform.(Ref(win), wgrid)) 
 
 # test 1: in-bandwidth recovery, at least to single precision in inf norm:
 ix_in = findall(x->abs(x) < IrregularSpectra.bandwidth(win), wgrid)
