@@ -86,7 +86,7 @@ function fouriertransform(ka::Kaiser, w::Float64)
   (cispi(2*w*c/s)/s)*unitkbwindow_ft(w/s, ka.beta)/ka.normalizer
 end
 
-linsys_rhs(ka::Kaiser, frequency_grid) = fouriertransform(ka, frequency_grid)
+linsys_rhs(ka::Kaiser, frequency_grid) = fouriertransform.(Ref(ka), frequency_grid)
 
 
 #
@@ -177,4 +177,50 @@ function default_Ω(pts, g::Prolate1D; check=false)
     0.8*nj/(4*(bj - aj))
   end
 end
+
+#
+# Sine taper (1D):
+#
+
+struct Sine <: ClosedFormWindow
+  a::Float64
+  b::Float64
+end
+
+function default_Ω(pts, sw::Sine)
+  @info "Since the sine window is not very concentrated, the default Ω is slightly lower than with windows like the Kaiser. But you can often resolve higher Ω than this default without huge blowup, so feel free to experiment with manually setting Ω yourself." maxlog=1
+  0.7*length(pts)/(4*(sw.b-sw.a))
+end
+
+window_support(sw::Sine) = (sw.a, sw.b)
+
+#=
+function bandwidth(sw::Sine) 
+  error("The sine window FT decays like 1/ω^2, so its bandwidth is too large for applications that assume approximate compact support for the window FT.")
+end
+=#
+
+# on [-1/2, 1/2]
+function unit_sinewindow(x)
+  (-1/2 < x < 1/2) || return zero(x)
+  sqrt(2)*sinpi(x+1/2)
+end
+
+function (sw::Sine)(x)
+  (a, b) = (sw.a, sw.b)
+  (s, c) = (1/(b-a), -a/(b-a) - 1/2)
+  unit_sinewindow(s*x + c)*sqrt(s)
+end
+
+unit_sinewindow_ft(ω) = sqrt(2)*2*cospi(ω)/(pi*(1 - 4*ω^2))
+
+function fouriertransform(sw::Sine, ω)
+  (a, b) = (sw.a, sw.b)
+  (s, c) = (1/(b-a), -a/(b-a) - 1/2)
+  (cispi(2*ω*c/s)/s)*unit_sinewindow_ft(ω/s)*sqrt(s)
+end
+
+linsys_rhs(sw::Sine, fgrid) = fouriertransform.(Ref(sw), fgrid)
+
+krylov_nquad(pts, sw::Sine) = 4*length(pts) + 100
 

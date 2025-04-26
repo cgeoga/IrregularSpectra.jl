@@ -11,6 +11,12 @@ function default_Ω(pts, g; check=true)
   0.8*length(pts)/(4*(b-a))
 end
 
+function default_frequencies(pts, g, Ω)
+  fmax = Ω/2
+  len  = hasmethod(bandwidth, (typeof(g),)) ? 4*fmax/bandwidth(g) : length(pts)/4
+  collect(range(-fmax, fmax, length=Int(ceil(len))))
+end
+
 """
 `(Ω, weights) = window_quadrature_weights(pts::Vector{Float64}, g; kwargs...)`
 
@@ -83,30 +89,44 @@ function window_quadrature_weights(pts::Vector{Float64}, g; solver=default_solve
   (Ω, wts)
 end
 
+struct SpectralDensityEstimator{W}
+  Ω::Float64
+  win::W
+  freq::Vector{Float64}
+  sdf::Vector{Float64}
+  wts::Vector{ComplexF64}
+end
+
 """
-estimate_sdf(pts::Vector{Float64}, data, g, frequencies; Ω=default_Ω(pts, g),
-             wts=nothing, kwargs...)
+estimate_sdf(pts::Vector{Float64}, data, g; Ω=default_Ω(pts, g),
+             frequencies=default_frequencies(pts, g, Ω),
+             wts=nothing, kwargs...) -> (frequencies, estimates)
 
 Estimates the spectral density for the stationary process sampled at locations
 `pts` and with values given by `data` at frequencies `frequencies`. Each column
 in `data` is treated as an iid sample of the process and averaged in the final
 estimator. `Ω` is the resolution maximum for the window quadrature weights. 
 
-As of now, this function does not check the frequencies you are estimating compared
-to the highest resolvable frequency Ω! A safer interface is under development.
+As of now, this function does not check the frequencies you are estimating
+compared to the highest resolvable frequency Ω! A safer interface is under
+development.
 
-Any provided keyword arguments are passed to `window_quadrature_weights` if `wts` is
-`nothing`, and ignored if `wts` is provided. See the docstrings for `window_quadrature_weights`
-for details on available kwargs. If `wts` is provided, the `Ω` arg also does nothing.
+Any provided keyword arguments are passed to `window_quadrature_weights` if
+`wts` is `nothing`, and ignored if `wts` is provided. See the docstrings for
+`window_quadrature_weights` for details on available kwargs. If `wts` is
+provided, the `Ω` arg also does nothing.
 """
-function estimate_sdf(pts::Vector{Float64}, data, g, frequencies; 
-                      Ω=default_Ω(pts, g), wts=nothing, kwargs...)
+function estimate_sdf(pts::Vector{Float64}, data, g; 
+                      Ω=default_Ω(pts, g), 
+                      frequencies=default_frequencies(pts, g, Ω),
+                      wts=nothing, kwargs...)
   if isnothing(wts)
     (Ω, wts) = window_quadrature_weights(pts, g; Ω=Ω, kwargs...)
   end
   fs  = NUFFT3(pts, collect(frequencies.*(2*pi)), true, 1e-15)
   out = zeros(ComplexF64, length(frequencies), size(data, 2))
   mul!(out, fs, complex(Diagonal(wts)*data))
-  mean(x->abs2.(x), eachcol(out))
+  SpectralDensityEstimator(Ω, g, collect(frequencies), 
+                           mean(x->abs2.(x), eachcol(out)), wts)
 end
 

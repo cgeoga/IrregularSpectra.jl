@@ -16,7 +16,7 @@ end
 Ω         = 0.5*n/(4*(b-a))
 est_freqs = range(0.0, Ω/2, length=30)
 window    = Kaiser(6.0, a=a, b=b)
-est       = estimate_sdf(pts, sims, window, est_freqs; Ω=Ω)
+est       = estimate_sdf(pts, sims, window; frequencies=est_freqs, Ω=Ω)
 
 # Brief inspection of the output:
 @printf "\n\nEstimator summary using m=%i replicates:\n" m
@@ -24,6 +24,6 @@ est       = estimate_sdf(pts, sims, window, est_freqs; Ω=Ω)
 @printf "-------------------------------------\n"
 for (j, freq) in enumerate(est_freqs)
   true_sdf = IrregularSpectra.matern_sdf(freq, (1.0, 0.05, 1.75)) 
-  @printf "%1.3e    %1.3e      %1.3e\n" freq  true_sdf est[j]
+  @printf "%1.3e    %1.3e      %1.3e\n" freq  true_sdf est.sdf[j]
 end
 

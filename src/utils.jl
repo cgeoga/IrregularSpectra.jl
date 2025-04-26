@@ -128,9 +128,6 @@ function solve_linsys(pts, win, Ω, solver=default_solver(pts); verbose=false)
   solve_linsys(pts, win, Ω, solver; verbose=verbose)
 end
 
-# generic broadcasted Fourier transform.
-fouriertransform(g, wv::AbstractVector) = fouriertransform.(Ref(g), wv)
-
 chebnodes(n) = reverse([cos(pi*(2*k-1)/(2*n)) for k in 1:n])./2 .+ 0.5
 chebnodes(n, a, b) = chebnodes(n)*(b-a) .+ a
 

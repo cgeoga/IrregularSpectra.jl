@@ -16,7 +16,7 @@ end
 window      = Prolate1D(8.0, [(a1, b1), (a2, b2)])
 fmax        = 0.25*min(n1/(4*(b1-a1)), n2/(4*(b2-a2)))
 est_freqs   = range(0.0, fmax, length=300)
-est         = estimate_sdf(pts, sims, window, est_freqs)
+est         = estimate_sdf(pts, sims, window; frequencies=est_freqs)
 
 # Brief inspection of the output:
 @printf "\n\nEstimator summary using m=%i replicates:\n" m
@@ -24,6 +24,6 @@ est         = estimate_sdf(pts, sims, window, est_freqs)
 @printf "-------------------------------------\n"
 for (j, freq) in enumerate(est_freqs)
   true_sdf = IrregularSpectra.matern_sdf(freq, (1.0, 0.05, 1.75)) 
-  @printf "%1.3e    %1.3e      %1.3e\n" freq  true_sdf est[j]
+  @printf "%1.3e    %1.3e      %1.3e\n" freq  true_sdf est.sdf[j]
 end
 

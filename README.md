@@ -33,20 +33,25 @@ sim = let kernel = (x,y)->IrregularSpectra.matern_cov(x-y, (1.0, 0.1, 1.75))
   IrregularSpectra.simulate_process(pts, kernel, m)
 end
 ```
-
-From here, the estimator is easy to obtain: we simply pick the frequencies at
-which we'd like to estimate the SDF, select the window function we wish to use
-(and it is easy to bring your own!), and use the `estimate_sdf` function. The
-choice `6.0` is the (half-)bandwidth parameter. The function `estimate_sdf`, if
-given multiple iid samples as columns in `sims`, will average the multiple
-estimates.
+From here, the estimator is easy to obtain: select the window function we wish
+to use (and it is easy to bring your own!), and use the `estimate_sdf` function.
+In this example we use a Kaiser window with half-bandwidth `6.0`, which is a
+good default choice for samples that don't have big gaps (see below for
+gap-friendly alternatives). The function `estimate_sdf`, if given multiple iid
+samples as columns in `sims`, will average the multiple estimates.
 
 ```julia
-Ω         = 0.5*n/(4*(b-a)) # half of theoretical nyquist max
-est_freqs = range(0.0, Ω/2, length=1000)
 window    = Kaiser(6.0, a=a, b=b)
-est       = estimate_sdf(pts, sims, window, est_freqs; Ω=Ω)
+estimator = estimate_sdf(pts, sims, window)
 ```
+The return object `estimator` is a `IrregularSpectra.SpectralDensityEstimator`.
+Similar to return types in `DSP.jl` and others, you can summarize it with things
+like 
+```julia
+plot(estimator.freq, estimator.sdf, [... your other kwargs ...])
+```
+The other internal components in that struct are subject to change, but
+hopefully at least these two fields of `freq` and `sdf` will now be stable.
 
 The script document in `./examples/simple_demo.jl` just uses printing as a
 diagnostic, but here is a visual one where we estimate at more frequencies (this
@@ -54,8 +59,8 @@ plot was made with my own wrapper of Gnuplot that uses sixel output, but
 substitute with your preferred plotting tool):
 ```julia
 truth = IrregularSpectra.matern_sdf.(many_est_freqs, Ref((1.0, 0.1, 1.75)))
-est1  = estimate_sdf(pts, sims[:,1], window, est_freqs; Ω=Ω) 
-gplot(est_freqs, est1, est, truth, ylog=true)
+est1  = estimate_sdf(pts, sims[:,1], window)
+gplot(est1.freq, est1.sdf, estimator.sdf, truth, ylog=true)
 ```
 
 <p align="center">
@@ -80,12 +85,11 @@ using IrregularSpectra
 
 # Your irregularly sampled points, supported on the listed intervals.
 intervals = [(a_1, b_1), ..., (a_k, b_k)]
-pts       = [...] 
-data      = [...]
+pts       = [...] # your measurement locations
+data      = [...] # your measurement values 
 
-window    = Prolate1D(bandwidth, intervals)
-est_freqs = [...] # frequencies to estimate at
-est       = estimate_sdf(pts, data, window, est_freqs)
+window = Prolate1D(bandwidth, intervals)
+estimator = estimate_sdf(pts, data, window)
 ```
 
 You should be mindful in selecting the highest frequency to estimate, as the
@@ -109,11 +113,21 @@ estimators for each measured interval.
 Computing the weights required for this estimator takes O(n^3) work if done
 naively. But using the accelerations of the NUFFT and implicit Krylov methods
 with a carefully chosen preconditioner, we now offer as the default option an
-implicit method that in ideal cases scales quasilinearly instead. At this time
-we do not offer any proof or guarantees of this scaling, but in our
-experimentation it works pretty well. Details in this implementation are likely
-to change over time.
+implicit method that in ideal cases scales quasilinearly instead. The secret
+sauce here is that the NUFFT accelerates the nonuniform Fourier matrix
+applications, but the linear system being solved is basically singular, and so
+you also need a clever preconditioner. 
 
+As of now, the default preconditioner uses a dense Cholesky factorization. This
+is `O(n^3)` operations, naturally, but for small data sizes (maybe n ~ 5-10k or
+less) it is still faster than the scalable one. For larger data sizes, there is
+an extension of this package using 
+[`HMatrices.jl`](https://github.com/IntegralEquations/HMatrices.jl) 
+that offers a truly `O(n \log n)` preconditioner, and so you can still estimate
+SDFs from hundreds of thousands of points in seconds. See
+`./example/big_demo.jl` for an example.
+
+<!---
 ## A heuristic frequency selector
 
 The rate at which aliasing bias can dominate an estimate for the SDF depends
@@ -133,7 +147,9 @@ In action, you might modify the above code to do this instead:
 ```julia
 (wts, fmax) = matern_frequency_selector(pts, window, smoothness=0.5, alias_tol=0.1)
 est_freqs   = range(0.0, fmax, length=1000)
-est         = estimate_sdf(pts, sims, window, est_freqs; wts=wts)
+estimate_sdf(pts, sims, window; 
+             frequencies=est_freqs, # note these kwargs here, which
+             wts=wts)               # came from the frequency_selector.
 ```
 In particular:
 - The `smoothness` argument is the smoothness used in the Matern process. The
@@ -160,6 +176,7 @@ happening soon.
 
 This alternative estimator workflow is demonstrated as a plain code file in
 `./examples/matern_selector.jl`.
+-->
 
 
 # Roadmap
@@ -183,8 +200,4 @@ features to expect in the near future:
   (although with different mechanisms for each). It would be very nice for this
   tool to be sufficiently general that it takes _any_ points and gives you back
   a decent estimator that has been computed as rapidly as possible.
-- It would be nice to stabilize some kind of result-type API and exported getter
-  functions to protect users from changes that really should only be relevant to
-  internal functions and developers. Maybe some kind of result type like
-  `SpectralEstimator` or something.
 

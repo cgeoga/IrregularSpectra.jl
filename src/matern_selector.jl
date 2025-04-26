@@ -26,6 +26,7 @@ function matern_sdf(w, p)
   (sig^2)*pre*(2*v/(rho^2) + fpi2*norm(w)^2)^(-v - d/2)
 end
 
+#=
 function default_range(g)
   (a, b) = window_support(g)
   (b-a)/50
@@ -100,6 +101,7 @@ function matern_frequency_selector(pts, g::ClosedFormWindow; smoothness=1.5,
     actual   = real(dot(fmax_col, Dw*(L\(D*(L'\(Dw'*fmax_col))))))
     # Compare the error with the aliasing tol, and either return the weights and
     # permissible fmax or reduce fmax and repeat.
+    @show (shouldbe, actual)
     abs(actual - shouldbe) < shouldbe*alias_tol && return (wts, fmax)
     verbose && println("Reducing fmax ($fmax)...")
     fmax *= reduction_factor
@@ -109,6 +111,7 @@ function matern_frequency_selector(pts, g::ClosedFormWindow; smoothness=1.5,
   # a way that somebody could miss.
   (wts, NaN)
 end
+=#
 
 # This is a very quick-and-dirty function to compute a sparse inverse Cholesky
 # factor (or rather, an LDLt factorization with Sigma ≈ inv(L'*inv(D)*L)).  It
@@ -144,4 +147,3 @@ function sparse_rchol(kfn, pts; k=20)
   end
   (LowerTriangular(L), Diagonal(D))
 end
-
