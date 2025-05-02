@@ -207,10 +207,6 @@ features to expect in the near future:
   and balancing the tradeoff between reducing the norm of the weights and the
   off-lobe power in the spectral window. This is again something we have
   implemented and all that is left to do is to polish it.
-- Fixing the preconditioner in 2+D. This may end up being a simple fix or a
-  different strategy may end up being preferable in higher dimensions. It isn't
-  terrible now, but it can take as much as 300 iterations to converge instead of
-  30, which is the norm in 1D. So clearly there is room for improvement.
 - An interface for providing arbitrary points in arbitrary dimensions and
   obtaining prolate function evaluations and right-hand sides for weight
   calculation. This is done _except_ for the step of a designing a robust function
