@@ -2,10 +2,17 @@
 # IrregularSpectra.jl
 
 This repository is the software library companion to [Nonparametric spectral
-density estimation from irregularly sampled data](https://arxiv.org/abs/2503.00492).
-
-Please note that precompile times are long right now. We are working to identify
-the source of the problem and mitigate it.
+density estimation from irregularly sampled data](https://arxiv.org/abs/2503.00492). 
+If this package was useful to you or provided functionality that was important to your
+work, please cite it as the following paper:
+```
+@article{gb2025_irregular_sdf,
+  title={Nonparametric spectral density estimation from irregularly sampled data},
+  author={Geoga, Christopher J. and Beckman, Paul G.},
+  journal={arXiv preprint arXiv:2503.00492},
+  year={2025}
+}
+```
 
 # Basic usage demonstration
 
