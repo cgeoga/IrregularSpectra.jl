@@ -88,7 +88,7 @@ linsys_rhs(ka::Kaiser, frequency_grid) = fouriertransform.(Ref(ka), frequency_gr
 #
 
 """
-Prolate1D(intervals::Vector{NTuple{2,Floa564}}, bandwidth::Float64)
+Prolate1D(bandwidth::Float64, intervals::Vector{NTuple{2,Float64}})
 
 A (generalized) prolate function with support on `intervals` and half-bandwidth
 `bandwidth`. Unlike a closed-form window like the Kaiser, this function and its

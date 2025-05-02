@@ -91,35 +91,3 @@ function LinearAlgebra.mul!(buf, anf::Adjoint{ComplexF64, NUFFT3}, x)
   buf
 end
 
-# As currently parameterized, this is only for symmetric sinc matrices. But
-# certainly this code could be trivially extended to the nonsymmetric case.
-#
-# TODO (cg 2025/03/23 15:55): could store buffers here to make mul! more efficient.
-struct FastSinc{T}
-  D::T
-  s_2pi::Vector{Float64}
-  no::Vector{Float64}
-  wt::Vector{Float64}
-end
-
-# bandwidth bw parameterized here so that bw=1.0 corresponds to Julia's sinc
-# function.
-function FastSinc(s, bw=1.0; D=I)
-  issymmetric(D) || throw(error("For now, the conjugation matrix D must be symmetric."))
-  quadn    = Int(ceil(2*bw*maximum(abs, s)*4 + 50))
-  (no, wt) = glquadrule(quadn, -0.5, 0.5)
-  FastSinc(D, s.*(2*pi*bw), no, wt)
-end
-
-LinearAlgebra.ishermitian(fs::FastSinc) = true
-Base.eltype(fs::FastSinc)  = Float64 
-Base.size(fs::FastSinc)    = (length(fs.s_2pi), length(fs.s_2pi))
-Base.size(fs::FastSinc, j) = size(fs)[j]
-
-# TODO (cg 2025/03/23 15:20): optimize this routine.
-function LinearAlgebra.mul!(buf, fs::FastSinc, v) 
-  nft_data   = nufft1d3(fs.s_2pi, complex.(fs.D*v), 1, 1e-15, fs.no)
-  nft_data .*= fs.wt
-  buf       .= fs.D*real(nufft1d3(fs.no, nft_data, -1, 1e-15, fs.s_2pi))
-end
-

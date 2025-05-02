@@ -24,12 +24,6 @@ end
 end
 =#
 
-@testset "Fast sinc" begin
-  let scope_dummy = 0
-    include("./tests/fastsinc.jl")
-  end
-end
-
 @testset "Prolate" begin
   let scope_dummy = 0
     include("./tests/prolate.jl")

@@ -147,3 +147,5 @@ function sparse_rchol(kfn, pts; k=20)
   end
   (LowerTriangular(L), Diagonal(D))
 end
+
+

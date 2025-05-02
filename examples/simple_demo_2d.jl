@@ -1,5 +1,5 @@
 
-using Printf, IrregularSpectra, HMatrices, StaticArrays
+using IrregularSpectra, StaticArrays
 
 # Generate n uniform points on [0,1]:
 n   = 5000
@@ -13,8 +13,7 @@ end
 
 # Compute the estimator, which we'll do at just a few points for demonstration:
 window = TensorProduct2DWindow(Kaiser(3.0), Kaiser(3.0))
-solver = KrylovSolver(HMatrixPreconditioner(1e-8, 1e-8), 1e-8)
-est    = estimate_sdf(pts, sims, window; solver=solver)
+est    = estimate_sdf(pts, sims, window)
 
 # Unlike in the 1D case, the window-induced bias in 2+D can be very strong. So
 # you shouldn't expect the mean of even many many samples to be close to the
