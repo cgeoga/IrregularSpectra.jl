@@ -12,10 +12,13 @@ sims = let kernel = (x,y)->IrregularSpectra.matern_cov(x-y, (1.0, 0.05, 1.75))
   IrregularSpectra.simulate_process(pts, kernel, m)
 end
 
-# Compute the estimator, which we'll do at just a few points for demonstration:
+# Compute the estimator, which we'll do at just a few points for demonstration.
+# Note that this manual selection of fmax and est_freqs is just to show you the
+# syntax of providing custom values of those yourself. As the main README and
+# docstrings clarify, this package does have (heuristic!) default choices.
 window      = Prolate1D(8.0, [(a1, b1), (a2, b2)])
 fmax        = 0.25*min(n1/(4*(b1-a1)), n2/(4*(b2-a2)))
-est_freqs   = range(0.0, fmax, length=300)
+est_freqs   = range(0.0, fmax, length=30)
 est         = estimate_sdf(pts, sims, window; frequencies=est_freqs)
 
 # Brief inspection of the output:

@@ -1,3 +1,4 @@
+
 module IrregularSpectra
 
   # stdlibs:
@@ -6,17 +7,21 @@ module IrregularSpectra
   # external pacakges (actual dependencies):
   using QuadGK, FINUFFT, Bessels, FastGaussQuadrature, Krylov, StaticArrays
 
-  export DenseSolver, SketchSolver, KrylovSolver, CholeskyPreconditioner, HMatrixPreconditioner
-  export window_quadrature_weights, estimate_sdf, Kaiser, Prolate1D, Sine, TensorProduct2DWindow, SincKernel
-
   include("utils.jl")
+  export DenseSolver, SketchSolver, KrylovSolver, CholeskyPreconditioner, HMatrixPreconditioner
 
   include("nufft.jl")
 
   include("window.jl")
+  export Kaiser, Prolate1D, Sine, TensorProduct2DWindow
+
+  include("kernels.jl")
+  export SincKernel, GaussKernel
 
   include("transform.jl")
+  export window_quadrature_weights, estimate_sdf
 
   include("matern_selector.jl")
 
 end 
+

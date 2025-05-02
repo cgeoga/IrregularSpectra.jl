@@ -18,11 +18,12 @@ module IrregularSpectraHMatricesExt
     if length(Ω) > 1 && K == IrregularSpectra.SincKernel
       @warn "In higher dimensions with the H-matrix preconditioner, please use the `GaussKernel` preconditioner kernel and not the `SincKernel` for better performance."
     end
-    kernel   = IrregularSpectra.gen_preconditioner_kernel(solver, Ω)
+    kernel   = IrregularSpectra.gen_preconditioner_kernel(solver, pts_sa, Ω)
     sk       = KernelMatrix(kernel, pts_sa, pts_sa)
     pre_time = @elapsed begin
-      H  = assemble_hmatrix(sk; atol=solver.preconditioner.atol)
-      Hf = if has_empty_leaves(H) 
+      adm = (K isa SincKernel) ? StrongAdmissibilityStd() : WeakAdmissibilityStd()
+      H   = assemble_hmatrix(sk; atol=solver.preconditioner.atol, adm=adm)
+      Hf  = if has_empty_leaves(H) 
         @warn "The H-matrix preconditioner approximation has empty leaves and cannot be factorized. Falling back to an identity preconditioner..."
         I 
       else
