@@ -145,58 +145,6 @@ construction the estimation interface is completely dimension-agnostic. This is
 a primary focus of development and you should expect both the window tooling and
 efficiency in the linear system solver to improve in the next couple months.
 
-<!---
-## A heuristic frequency selector
-
-The rate at which aliasing bias can dominate an estimate for the SDF depends
-strongly on several factors. The primary two factors are the norm of the weights
-and the rate at which the true SDF decays. Naturally in real applications of
-nonparametric estimation we don't have access to the rate at which the SDF
-decays. But a heuristic tool for at least beginning to make the decisions of
-selecting Ω and the highest frequency to estimate in a structured way is offered
-in `matern_frequency_selector`. This function exactly computes the cutoff
-frequency for which the bias of an SDF estimator exceeds a relative tolerance of
-the true SDF for a Matern process with user-selectable smoothness and range
-parameters. Even for very large `n`, the weight vector computation is by far the
-most expensive component since this code internally uses sparse precision
-approximations to accelerate all covariance matrix operations.
-
-In action, you might modify the above code to do this instead:
-```julia
-(wts, fmax) = matern_frequency_selector(pts, window, smoothness=0.5, alias_tol=0.1)
-est_freqs   = range(0.0, fmax, length=1000)
-estimate_sdf(pts, sims, window; 
-             frequencies=est_freqs, # note these kwargs here, which
-             wts=wts)               # came from the frequency_selector.
-```
-In particular:
-- The `smoothness` argument is the smoothness used in the Matern process. The
-  lower this is, the more conservative your `fmax` will be.
-- There is also a kwarg `rho`, for the range parameter. This code automatically
-  selects a reasonable default, but you are welcome to change it.
-- `alias_tol` is the cutoff used to determine how much `fmax` needs to be
-  reduced. In particular, `fmax` is reduced until `|S(fmax) - \E
-  \hat{S}(fmax)|/S(fmax) < alias_tol`. The smaller this value is, the smaller
-  `fmax` will be---but the smaller the relative bias from aliasing will be as well.
-  The choice of this quantity depends on your needs.
-- Finally, there is also a `max_wt_norm` argument, with default value `0.15`.
-  Sometimes you can find a safe way to look deeper into a spectrum by reducing
-  Ω, which will reduce the norm of the weights, and in turn reduce the magnitude
-  of the aliasing bias for every estimate. At this time, we do not have an easy
-  answer about when reducing Ω can actually lead to a higher `fmax`. But
-  especially for non-differentiable processes it clearly can happen.
-
-**NOTE:** This method requires scalar evaluations of the window function and its
-Fourier transform (the subtype `ClosedFormWindow`), so it presently only works
-for `Kaiser` and not `Prolate1D`. We may or may not lift this restriction some
-time in the future, for some complicated reasons I wouldn't count on that
-happening soon.
-
-This alternative estimator workflow is demonstrated as a plain code file in
-`./examples/matern_selector.jl`.
--->
-
-
 # Roadmap
 
 This software library is under very active development. An incomplete list of

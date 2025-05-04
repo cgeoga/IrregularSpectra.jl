@@ -171,3 +171,53 @@ function threaded_km_assembly(kernel::K, pts) where{K}
   Symmetric(out, :U)
 end
 
+function matern_cov(t, p)
+  (sig, rho, v) = p
+  iszero(t) && return sig^2
+  arg = sqrt(2*v)*norm(t)/rho
+  (sig^2)*((2^(1-v))/Bessels.gamma(v))*(arg^v)*Bessels.besselk(v, arg)
+end
+
+function matern_sdf(w, p) 
+  d = length(w)
+  (sig, rho, v) = p
+  fpi2 = 4*pi^2
+  pre  = (2^d)*(pi^(d/2))*Bessels.gamma(v+d/2)*((2*v)^v)/(Bessels.gamma(v)*rho^(2*v))
+  (sig^2)*pre*(2*v/(rho^2) + fpi2*norm(w)^2)^(-v - d/2)
+end
+
+# This is a very quick-and-dirty function to compute a sparse inverse Cholesky
+# factor (or rather, an LDLt factorization with Sigma ≈ inv(L'*inv(D)*L)).  It
+# is normally the backbone of Vecchia-type methods, but in this setting it is
+# basically exact.
+#
+# TODO (cg 2024/11/21 11:41): this is my max-simple demonstration of the rchol.
+# This could of course be optimized a great deal. Including:
+# -- using banded matrices instead of sparse
+# -- pre-allocating buffers and parallelizing 
+# -- I'm sure other stuff too
+# But I doubt that this will _ever_ be the bottleneck even as it is, so it
+# doesn't seem like a high priority to me.
+function sparse_rchol(kfn, pts; k=20)
+  n = length(pts)
+  L = sparse(Diagonal(ones(n)))
+  D = zeros(n)
+  for j in 1:n
+    cix  = max(1, j-k):(j-1)
+    pt   = pts[j]
+    cpts = pts[cix]
+    Sjj  = kfn(pt, pt)
+    if j > 1
+      Scc = cholesky!(Hermitian([kfn(x,y) for x in cpts, y in cpts]))
+      Scj = [kfn(x, pt) for x in cpts]
+      kweights = Scc\Scj
+      ccov     = Sjj - dot(Scj, kweights)
+      D[j]     = ccov
+      view(L, j, cix) .= -kweights
+    else
+      D[j] = Sjj
+    end
+  end
+  (LowerTriangular(L), Diagonal(D))
+end
+
