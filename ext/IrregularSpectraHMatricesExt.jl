@@ -5,7 +5,7 @@ module IrregularSpectraHMatricesExt
   using IrregularSpectra.LinearAlgebra
   using IrregularSpectra.Printf
 
-  using IrregularSpectra: KrylovSolver, HMatrixPreconditioner, getdim, glquadrule, linsys_rhs, static_points, NUFFT3
+  using IrregularSpectra: KrylovSolver, HMatrixPreconditioner
 
   function has_empty_leaves(H)
     sparse_leaves = filter(x->HMatrices.isadmissible(x), HMatrices.leaves(H))
@@ -18,7 +18,7 @@ module IrregularSpectraHMatricesExt
     if length(Ω) > 1 && K == IrregularSpectra.SincKernel
       @warn "In higher dimensions with the H-matrix preconditioner, please use the `GaussKernel` preconditioner kernel and not the `SincKernel` for better performance."
     end
-    kernel   = IrregularSpectra.gen_preconditioner_kernel(solver, pts_sa, Ω)
+    kernel   = IrregularSpectra.gen_kernel(solver, pts_sa, Ω)
     sk       = KernelMatrix(kernel, pts_sa, pts_sa)
     pre_time = @elapsed begin
       adm = (K isa SincKernel) ? StrongAdmissibilityStd() : WeakAdmissibilityStd()

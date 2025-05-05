@@ -8,6 +8,8 @@ module IrregularSpectra
   using QuadGK, FINUFFT, Bessels, FastGaussQuadrature, Krylov, StaticArrays
 
   include("utils.jl")
+
+  include("solvers.jl")
   export DenseSolver, SketchSolver, KrylovSolver, CholeskyPreconditioner, HMatrixPreconditioner
 
   include("nufft.jl")
@@ -20,8 +22,6 @@ module IrregularSpectra
 
   include("transform.jl")
   export window_quadrature_weights, estimate_sdf
-
-  include("matern_selector.jl")
 
 end 
 

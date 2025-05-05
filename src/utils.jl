@@ -32,101 +32,10 @@ static_points(x::Vector{SVector{D,Float64}}) where{D} = x
 getdim(pts::Vector{Float64}) = 1
 getdim(pts::Vector{SVector{D,Float64}}) where{D} = D
 
-# TODO (cg 2025/04/21 12:26): At some point, it would be nice to split each of
-# these things out into weakdeps so that the dependencies of this package can be
-# smaller. But with that said, if users will almost always want to pull in the
-# Krylov solver (for example), maybe it should just be a hard dependency.
-abstract type LinearSystemSolver end
-
-# For IrregularSpectraLowRankApproxExt:
-struct SketchSolver <: LinearSystemSolver 
-  tol::Float64
-end
-
-struct DenseSolver <: LinearSystemSolver  end
-
-function solve_linsys(pts, win, Ω, solver::DenseSolver; verbose=false)
-  wgrid = glquadrule(krylov_nquad(pts, win), .-Ω, Ω)[1]
-  b     = linsys_rhs(win, wgrid)
-  F     = nudftmatrix(wgrid, pts, -1)
-  qr!(F, ColumnNorm())\b
-end
-
-abstract type KrylovPreconditioner end
-
-struct HMatrixPreconditioner <: KrylovPreconditioner
-  atol::Float64   # generic suggestion: 1e-8
-  luatol::Float64 # generic suggestion: 1e-8
-end
-
-struct CholeskyPreconditioner <: KrylovPreconditioner end
-
-struct KrylovSolver{P,K} <: LinearSystemSolver where{P,K}
-  preconditioner::P
-  pre_kernel::Type{K}
-  perturbation::Float64
-end
-
 # default method:
 krylov_nquad(pts::Vector{Float64}, win) = 4*length(pts) + 100
 function krylov_nquad(pts::Vector{SVector{D,Float64}}, win) where{D}
   ntuple(_->Int(ceil(sqrt(4*length(pts)))) + 10, D)
-end
-
-function krylov_preconditioner(pts_sa, Ω, solver::KrylovSolver{CholeskyPreconditioner,K};
-    verbose=false) where{K}
-  kernel = gen_preconditioner_kernel(solver, pts_sa, Ω)
-  M = threaded_km_assembly(kernel, pts_sa)
-  pre_time = @elapsed Mf = cholesky!(M)
-  verbose && @printf "Preconditioner assembly time: %1.3fs\n" pre_time
-  Mf
-end
-
-function solve_linsys(pts, win, Ω, solver::KrylovSolver; verbose=false)
-  (wgrid, glwts) = glquadrule(krylov_nquad(pts, win), .-Ω, Ω)
-  rhs    = linsys_rhs(win, wgrid)
-  pts_sa = static_points(pts)
-  kernel = gen_preconditioner_kernel(solver, pts_sa, Ω)
-  D      = Diagonal(sqrt.(glwts.*fouriertransform.(Ref(kernel), wgrid)))
-  F      = NUFFT3(pts, collect(wgrid.*(2*pi)), false, 1e-15, D)
-  pre    = krylov_preconditioner(pts_sa, Ω, solver; verbose=verbose)
-  vrb    = verbose ? 10 : 0
-  wts    = lsmr(F, D*rhs, N=pre, verbose=vrb, etol=0.0, axtol=0.0, atol=1e-11, 
-                btol=0.0, rtol=1e-10, conlim=Inf, ldiv=true, itmax=500)[1]
-  l2norm = let tmp = Vector{ComplexF64}(undef, length(rhs))
-    _F = NUFFT3(pts, collect(wgrid.*(2*pi)), false, 1e-15)
-    mul!(tmp, _F, wts)
-    sqrt(dot(glwts, abs2.(tmp)))
-  end
-  wts ./= l2norm
-  wts
-end
-
-function default_solver(pts; perturbation=1e-8)
-  if length(pts) < 2000
-    return DenseSolver()
-  else
-    if length(pts) > 5_000
-      @warn """For large datasets, the default solver (Krylov with a dense Cholesky preconditioner)
-      can have a long runtime. Consider ]add-ing the weakdep HMatrices and using the following
-      solver instead:
-
-      ```
-        using HMatrices
-        pre = HMatrixPreconditioner(1e-8, 1e-8)
-        solver = KrylovSolver(pre, SincKernel, 1e-8) # SincKernel -> GaussKernel if dim > 1!
-        estimate_sdf([...], solver=solver, [...])
-      ```
-
-      """
-    end
-    ktype = isone(getdim(pts)) ? SincKernel : GaussKernel
-    return KrylovSolver(CholeskyPreconditioner(), SincKernel, perturbation)
-  end
-end
-
-function solve_linsys(pts, win, Ω, solver=default_solver(pts); verbose=false)
-  solve_linsys(pts, win, Ω, solver; verbose=verbose)
 end
 
 function glquadrule(n::Int64, a, b)
