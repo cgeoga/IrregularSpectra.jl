@@ -13,7 +13,7 @@ sims = randn(n, m)
 
 # Compute the estimator, which we'll do at just a few points for demonstration:
 window = TensorProduct2DWindow(Kaiser(3.0), Kaiser(3.0))
-solver = KrylovSolver(HMatrixPreconditioner(1e-8, 1e-9), GaussKernel, 1e-8) # note GaussKernel!
+solver = KrylovSolver(HMatrixPreconditioner(1e-8, 1e-9), GaussKernel) # note GaussKernel!
 est    = estimate_sdf(pts, sims, window; solver=solver)
 
 # Unlike in the 1D case, the window-induced bias in 2+D can be very strong. So

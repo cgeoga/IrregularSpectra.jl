@@ -44,22 +44,32 @@ SketchSolver(sketchtol::Float64) = SketchSolver(IdentityKernel, sketchtol, 1e-12
 # extension. For small data sizes (n ≤ 10k, say), the CholeskyPreconditioner is
 # probably going to be the fastest. 
 #
-# NOTE: the method 
+# NOTE: the methods
 #
 # solve_linsys(pts, win, Ω, solver::KrylovSolver{HMatrixPreconditioner}; verbose)
+# solve_linsys(pts, win, Ω, solver::KrylovSolver{VecchiaPreconditioner}; verbose)
 #
 # is defined in an extension.
 struct KrylovSolver{P,K} <: LinearSystemSolver where{P,K}
   preconditioner::P
   pre_kernel::Type{K}
   perturbation::Float64
+  maxit::Int64
 end
 
 abstract type KrylovPreconditioner end
 
+function KrylovSolver(p, pre_kernel::Type{K}; perturbation=1e-8, maxit=500) where{K}
+  KrylovSolver(p, pre_kernel, perturbation, maxit)
+end
+                      
 struct HMatrixPreconditioner <: KrylovPreconditioner
   atol::Float64   # generic suggestion: 1e-8
   luatol::Float64 # generic suggestion: 1e-8
+end
+
+struct VecchiaPreconditioner <: KrylovPreconditioner
+  ncond::Int64 # generic suggestion: 30
 end
 
 struct CholeskyPreconditioner <: KrylovPreconditioner end
@@ -71,20 +81,20 @@ function krylov_preconditioner(pts_sa, Ω, solver::KrylovSolver{CholeskyPrecondi
   M = threaded_km_assembly(kernel, pts_sa)
   pre_time = @elapsed Mf = cholesky!(M)
   verbose && @printf "Preconditioner assembly time: %1.3fs\n" pre_time
-  Mf
+  (true, Mf)
 end
 
 function solve_linsys(pts, win, Ω, solver::KrylovSolver; verbose=false)
   (wgrid, glwts) = glquadrule(krylov_nquad(pts, win), .-Ω, Ω)
-  rhs    = linsys_rhs(win, wgrid)
-  pts_sa = static_points(pts)
-  kernel = gen_kernel(solver, pts_sa, Ω)
-  D      = Diagonal(sqrt.(glwts.*fouriertransform.(Ref(kernel), wgrid)))
-  F      = NUFFT3(pts, collect(wgrid.*(2*pi)), false, 1e-15, D)
-  pre    = krylov_preconditioner(pts_sa, Ω, solver; verbose=verbose)
-  vrb    = verbose ? 10 : 0
-  wts    = lsmr(F, D*rhs, N=pre, verbose=vrb, etol=0.0, axtol=0.0, atol=1e-11, 
-                btol=0.0, rtol=1e-10, conlim=Inf, ldiv=true, itmax=500)[1]
+  rhs            = linsys_rhs(win, wgrid)
+  pts_sa         = static_points(pts)
+  kernel         = gen_kernel(solver, pts_sa, Ω)
+  D              = Diagonal(sqrt.(glwts.*fouriertransform.(Ref(kernel), wgrid)))
+  F              = NUFFT3(pts, collect(wgrid.*(2*pi)), false, 1e-15, D)
+  (_ldiv, pre)   = krylov_preconditioner(pts_sa, Ω, solver; verbose=verbose)
+  vrb            = verbose ? 10 : 0
+  wts = lsmr(F, D*rhs, N=pre, verbose=vrb, etol=0.0, axtol=0.0, atol=1e-11, 
+             btol=0.0, rtol=1e-10, conlim=Inf, ldiv=_ldiv, itmax=solver.maxit)[1]
   l2norm = let tmp = Vector{ComplexF64}(undef, length(rhs))
     _F = NUFFT3(pts, collect(wgrid.*(2*pi)), false, 1e-15)
     mul!(tmp, _F, wts)

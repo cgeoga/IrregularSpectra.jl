@@ -9,16 +9,16 @@ module IrregularSpectra
 
   include("utils.jl")
 
-  include("solvers.jl")
-  export DenseSolver, SketchSolver, KrylovSolver, CholeskyPreconditioner, HMatrixPreconditioner
-
   include("nufft.jl")
 
-  include("window.jl")
-  export Kaiser, Prolate1D, Sine, TensorProduct2DWindow
+  include("solvers.jl")
+  export DenseSolver, SketchSolver, KrylovSolver, CholeskyPreconditioner, HMatrixPreconditioner, VecchiaPreconditioner
 
   include("kernels.jl")
   export SincKernel, GaussKernel
+
+  include("window.jl")
+  export Kaiser, Sine, Prolate1D, Prolate2D, TensorProduct2DWindow
 
   include("transform.jl")
   export window_quadrature_weights, estimate_sdf

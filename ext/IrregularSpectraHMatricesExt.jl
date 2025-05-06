@@ -7,12 +7,6 @@ module IrregularSpectraHMatricesExt
 
   using IrregularSpectra: KrylovSolver, HMatrixPreconditioner
 
-  function has_empty_leaves(H)
-    sparse_leaves = filter(x->HMatrices.isadmissible(x), HMatrices.leaves(H))
-    (rmin, rmax)  = extrema(x->HMatrices.rank(x.data), sparse_leaves)
-    iszero(rmin) 
-  end
-
   function IrregularSpectra.krylov_preconditioner(pts_sa, Ω, solver::KrylovSolver{HMatrixPreconditioner,K}; 
                                                   verbose=false) where{K}
     if length(Ω) > 1 && K == IrregularSpectra.SincKernel
@@ -21,17 +15,16 @@ module IrregularSpectraHMatricesExt
     kernel   = IrregularSpectra.gen_kernel(solver, pts_sa, Ω)
     sk       = KernelMatrix(kernel, pts_sa, pts_sa)
     pre_time = @elapsed begin
-      adm = (K isa SincKernel) ? StrongAdmissibilityStd() : WeakAdmissibilityStd()
-      H   = assemble_hmatrix(sk; atol=solver.preconditioner.atol, adm=adm)
-      Hf  = if has_empty_leaves(H) 
-        @warn "The H-matrix preconditioner approximation has empty leaves and cannot be factorized. Falling back to an identity preconditioner..."
-        I 
-      else
+      H  = assemble_hmatrix(sk; atol=solver.preconditioner.atol)
+      Hf = try
         lu(H; atol=solver.preconditioner.luatol)
+      catch
+        @warn "Preconditioner factorization failed, falling back to identity matrix..."
+        I
       end
     end
     verbose && @printf "Preconditioner assembly time: %1.3fs\n" pre_time
-    Hf
+    (true, Hf)
   end
 
 end
