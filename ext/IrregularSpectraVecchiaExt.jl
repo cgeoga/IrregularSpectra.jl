@@ -22,7 +22,7 @@ module IrregularSpectraVecchiaExt
     mul!(buf, scp.Us, tmp1)
   end
 
-  function IrregularSpectra.krylov_preconditioner(pts_sa, Ω, solver::KrylovSolver{VecchiaPreconditioner,K}; 
+  function IrregularSpectra.krylov_preconditioner!(pts_sa, Ω, solver::KrylovSolver{VecchiaPreconditioner,K}; 
                                                   verbose=false) where{K}
     kernel  = gen_kernel(solver, pts_sa, Ω)
     _kernel = (x, y, _) -> kernel(x, y) + Float64(x==y)*solver.perturbation
@@ -33,9 +33,13 @@ module IrregularSpectraVecchiaExt
       BLAS.set_num_threads(1)
     end
     pre_time = @elapsed begin
-      cfg = Vecchia.knnconfig(fill(NaN, length(pts_sa)), pts_sa, 
-                        solver.preconditioner.ncond, _kernel; randomize=false)
-      Us  = sparse(Vecchia.rchol(cfg, Float64[]; issue_warning=false))
+      cfg = Vecchia.fsa_knnconfig(Float64.(eachindex(pts_sa)), pts_sa, 
+                                  solver.preconditioner.ncond, 
+                                  solver.preconditioner.nfsa, 
+                                  _kernel; randomize=false)
+      p   = vec(Int64.(reduce(vcat, cfg.data)))
+      permute!(pts_sa, p)
+      Us  = sparse(Vecchia.rchol(cfg, Float64[]; use_tiles=true, issue_warning=false))
     end
     if multithread
       BLAS.set_num_threads(blas_nthreads)

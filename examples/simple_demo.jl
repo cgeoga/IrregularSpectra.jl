@@ -8,7 +8,7 @@ pts    = sort(rand(n).*(b-a) .+ a)
 
 # Simulate a Matern process at those points using m replicates:
 m    = 500
-sims = let kernel = (x,y)->IrregularSpectra.matern_cov(x-y, (1.0, 0.05, 1.75))
+sims = let kernel = (x,y)->IrregularSpectra.matern_cov(x-y, (1.0, 0.05, 1.25))
   IrregularSpectra.simulate_process(pts, kernel, m)
 end
 
@@ -23,7 +23,7 @@ est       = estimate_sdf(pts, sims, window; frequencies=est_freqs, Ω=Ω)
 @printf "\n    ω        true S(ω)      est. S(ω)\n"
 @printf "-------------------------------------\n"
 for (j, freq) in enumerate(est_freqs)
-  true_sdf = IrregularSpectra.matern_sdf(freq, (1.0, 0.05, 1.75)) 
+  true_sdf = IrregularSpectra.matern_sdf(freq, (1.0, 0.05, 1.25)) 
   @printf "%1.3e    %1.3e      %1.3e\n" freq  true_sdf est.sdf[j]
 end
 

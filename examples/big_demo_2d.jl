@@ -12,8 +12,11 @@ m    = 500
 sims = randn(n, m)
 
 # Compute the estimator, which we'll do at just a few points for demonstration:
-window = TensorProduct2DWindow(Kaiser(3.0), Kaiser(3.0))
-solver = KrylovSolver(HMatrixPreconditioner(1e-8, 1e-9), GaussKernel) # note GaussKernel!
+window = Prolate2D(4.0,         # (half-)bandwidth
+                   (0.0, 0.0),  # lower left  corner of rectangle
+                   (1.0, 1.0))  # upper right corner of rectangle
+solver = KrylovSolver(HMatrixPreconditioner(1e-9, 1e-9), GaussKernel, # note GaussKernel!
+                      perturbation=1e-8) 
 est    = estimate_sdf(pts, sims, window; solver=solver)
 
 # Unlike in the 1D case, the window-induced bias in 2+D can be very strong. So

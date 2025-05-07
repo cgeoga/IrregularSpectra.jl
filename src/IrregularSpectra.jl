@@ -15,7 +15,7 @@ module IrregularSpectra
   export DenseSolver, SketchSolver, KrylovSolver, CholeskyPreconditioner, HMatrixPreconditioner, VecchiaPreconditioner
 
   include("kernels.jl")
-  export SincKernel, GaussKernel
+  export SincKernel, GaussKernel, MaternKernel
 
   include("window.jl")
   export Kaiser, Sine, Prolate1D, Prolate2D, TensorProduct2DWindow

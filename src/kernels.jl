@@ -65,10 +65,10 @@ end
 
 
 #
-# GaussKernel: works well in _any_ dimension because it is not oscillatory. It
-# involves heavy implicit regularization of higher frequencies, so the
-# transformed linear system will often give back weights whose spectral window
-# is _better_ than what you asked for in the RHS of the original system.
+# GaussKernel: works well in _any_ dimension because it is not oscillatory. But
+# because the FT decays so rapidly, you need to pick the bandwidth high enough
+# that you don't effectively zero out high-frequencies that the window does need
+# to resolve.
 #
 
 struct GaussKernel{D} <: KernelFunction
@@ -103,5 +103,29 @@ end
 function gen_kernel(ks::SketchSolver{GaussKernel},
                     pts::Vector{SVector{D,Float64}}, Ω) where{D}
   GaussKernel(Ω; perturbation=0.0)
+end
+
+#
+# MaternKernel: the Matern covariance function, supported in any dimension. The
+# marginal variance is fixed at 1, but the range and smoothness parameters can
+# be selected. At the moment, I don't think this is better in any circumstance
+# than SincKernel or GaussKernel. But putting it here just in case. Probably
+# should restrict nu to hit the fast paths for besselk.
+#
+struct MaternKernel
+  rho::Float64
+  nu::Float64
+  perturbation::Float64
+end
+
+function (mk::MaternKernel)(x, y) 
+  matern_cov(x-y, (1.0, mk.rho, mk.nu)) + Float64(x==y)*mk.perturbation
+end
+
+fouriertransform(mk::MaternKernel, w) = matern_sdf(w, (1.0, mk.rho, mk.nu))
+
+function gen_kernel(ks::KrylovSolver{P,MaternKernel},
+                    pts::Vector{SVector{D,Float64}}, Ω) where{P,D}
+  MaternKernel(0.1*sqrt(inv(maximum(Ω))), 5.0, ks.perturbation)
 end
 
