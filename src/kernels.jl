@@ -23,6 +23,21 @@ abstract type KernelFunction end
 
 struct IdentityKernel <: KernelFunction end
 
+#
+# struct DefaultKernel: a special type that abstracts away the preconditioner
+# choice from users. In 1D, it is the SincKernel, and in 2+D it is the
+# KaiserKernel.
+#
+struct DefaultKernel end
+
+function gen_kernel(ks::KrylovSolver{P,DefaultKernel},
+                    pts::Vector{SVector{D,Float64}}, 
+                    Ω::NTuple{D,Float64}) where{P,D}
+  _k  = D == 1 ? SincKernel : KaiserKernel
+  _ks = KrylovSolver(ks.preconditioner, _k, ks.perturbation, ks.maxit)
+  gen_kernel(_ks, pts, Ω)
+end
+
 
 #
 # Sinckernel: works well in 1D and involves no implicit regularization of higher
@@ -125,7 +140,38 @@ end
 fouriertransform(mk::MaternKernel, w) = matern_sdf(w, (1.0, mk.rho, mk.nu))
 
 function gen_kernel(ks::KrylovSolver{P,MaternKernel},
-                    pts::Vector{SVector{D,Float64}}, Ω) where{P,D}
-  MaternKernel(0.1*sqrt(inv(maximum(Ω))), 5.0, ks.perturbation)
+                    pts::Vector{SVector{D,Float64}}, 
+                    Ω::NTuple{D,Float64}) where{P,D}
+  MaternKernel(0.5*sqrt(inv(maximum(Ω))), 4.5, ks.perturbation)
+end
+
+#
+# KaiserKernel: the Kaiser function in kernel form.
+#
+struct KaiserKernel{D}
+  kv::NTuple{D,Kaiser}
+  perturbation::Float64
+end
+
+function (kk::KaiserKernel{D})(x::SVector{D,Float64}, y::SVector{D,Float64}) where{D}
+  prod(j->kk.kv[j](x[j]-y[j]), 1:D) + Float64(x==y)*kk.perturbation
+end
+
+function fouriertransform(kk::KaiserKernel{D}, w::SVector{D,Float64}) where{D}
+  prod(j->fouriertransform(kk.kv[j], w[j]), 1:D)
+end
+
+
+function gen_kernel(ks::KrylovSolver{P,KaiserKernel},
+                    pts::Vector{SVector{D,Float64}}, 
+                    Ω::NTuple{D,Float64}) where{P,D}
+  kv = ntuple(D) do j
+    ptsj     = getindex.(pts, j)
+    (_a, _b) = extrema(x->x[1], ptsj)
+    ab       = (_a + _b)/2
+    (a, b)   = (_a - ab, _b-ab)
+    Kaiser(Ω[j]*pi, a=a, b=b)
+  end
+  KaiserKernel(kv, ks.perturbation)
 end
 

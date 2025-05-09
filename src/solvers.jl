@@ -59,13 +59,14 @@ end
 
 abstract type KrylovPreconditioner end
 
-function KrylovSolver(p, pre_kernel::Type{K}; perturbation=1e-8, maxit=500) where{K}
+function KrylovSolver(p, pre_kernel::Type{K}=DefaultKernel; 
+                      perturbation=1e-8, maxit=500) where{K}
   KrylovSolver(p, pre_kernel, perturbation, maxit)
 end
                       
 struct HMatrixPreconditioner <: KrylovPreconditioner
-  atol::Float64   # generic suggestion: 1e-8
-  luatol::Float64 # generic suggestion: 1e-8
+  tol::Float64  # generic suggestion: 1e-8
+  ftol::Float64 # generic suggestion: 1e-8
 end
 
 struct VecchiaPreconditioner <: KrylovPreconditioner
@@ -117,15 +118,13 @@ function default_solver(pts; perturbation=1e-10)
 
       ```
         using HMatrices
-        pre = HMatrixPreconditioner(1e-8, 1e-8)
-        solver = KrylovSolver(pre, SincKernel, 1e-8) # SincKernel -> GaussKernel if dim > 1!
+        solver = KrylovSolver(HMatrixPreconditioner(1e-8, 1e-8)) 
         estimate_sdf([...], solver=solver, [...])
       ```
 
       """
     end
-    ktype = isone(getdim(pts)) ? SincKernel : GaussKernel
-    return KrylovSolver(CholeskyPreconditioner(), SincKernel; 
+    return KrylovSolver(CholeskyPreconditioner(), DefaultKernel; 
                         perturbation=perturbation)
   end
 end

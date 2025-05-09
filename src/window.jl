@@ -43,7 +43,7 @@ A Kaiser window function with (half-)bandwidth W and support on [a, b].
 function Kaiser(W; a=0.0, b=1.0) 
   beta   = W*pi*abs(b-a)
   (s, c) = (1/(b-a), -a/(b-a)-1/2)
-  nr     = sqrt(quadgk(x->unitkaiser(s*x + c, beta)^2, a, b, atol=1e-10)[1])
+  nr     = sqrt(quadgk(x->unitkaiser(s*x + c, beta)^2, a, b, rtol=1e-10)[1])
   Kaiser(beta, nr, a, b)
 end
 
@@ -53,7 +53,8 @@ bandwidth(ka::Kaiser) = (ka.beta/(pi*abs(ka.b-ka.a)))
 function unitkaiser(x, beta)
   half = one(x)/2
   -half <= x <= half || return zero(x)
-  besseli(0, beta*sqrt(1 - (2*x)^2))
+  innerx = sqrt(1-(2*x)^2)
+  besselix(0, beta*innerx)*exp(-beta*(1-innerx))
 end
 
 function (ka::Kaiser)(x)
@@ -67,10 +68,13 @@ function unitkbwindow_ft(w, beta)
   (b, b2) =  (beta, beta^2)
   if pilf2 < b2
     arg = sqrt(b2 - pilf2)
-    return sinh(arg)/arg
+    arg < 10 && return exp(-beta)*sinh(arg)/arg
+    # this is equivalent to exp(-beta)*sinh(arg)/arg, but the sinh arg is huge
+    # and so we manually expand some things out to avoid losing digits.
+    return exp(arg-beta)*(1 - exp(-2*arg))/(2*arg)
   else
     arg = sqrt(pilf2 - b2)
-    return sinc(arg/pi)
+    return exp(-b)*sinc(arg/pi)
   end
 end
 

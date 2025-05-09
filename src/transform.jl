@@ -4,11 +4,15 @@ function default_Ω(pts::Vector{Float64}, g; check=true)
   # case you either need to implement it or write a custom default_Ω.
   (a, b) = window_support(g)
   if check
-    (_a, _b) = extrema(pts)
+    (_a, _b) = extrema(x->x[1], pts)
     _a < a && @warn "Your window function g(x) has support [$a, $b] and you have a point $(_a) < $a."
     _b > b && @warn "Your window function g(x) has support [$a, $b] and you have a point $(_b) > $b."
   end
   0.8*length(pts)/(4*(b-a))
+end
+
+function default_Ω(pts::Vector{SVector{1,Float64}}, g; check=true)
+  (default_Ω(getindex.(pts, 1), g; check=check),)
 end
 
 function default_frequencies(pts::Vector{Float64}, g, Ω::Float64)
