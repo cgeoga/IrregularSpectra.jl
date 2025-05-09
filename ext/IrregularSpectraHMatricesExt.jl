@@ -13,20 +13,17 @@ module IrregularSpectraHMatricesExt
       @warn "In higher dimensions with the H-matrix preconditioner, please use the `GaussKernel` preconditioner kernel and not the `SincKernel` for better performance."
     end
     kernel   = IrregularSpectra.gen_kernel(solver, pts_sa, Ω)
-    sk       = Hermitian(KernelMatrix(kernel, pts_sa, pts_sa)) # when HMatrices.jl#80 lands
-    #sk       = KernelMatrix(kernel, pts_sa, pts_sa)
+    #sk       = Hermitian(KernelMatrix(kernel, pts_sa, pts_sa)) # when HMatrices.jl#80 lands
+    sk       = KernelMatrix(kernel, pts_sa, pts_sa)
     pre_time = @elapsed begin
       H  = assemble_hmatrix(sk; rtol=solver.preconditioner.tol)
-      Hf = cholesky(H)
-      #=
       Hf = try
-        cholesky(H) # when HMatrices.jl#80 lands
-        #lu(H)
+        #cholesky(H) # when HMatrices.jl#80 lands
+        lu(H; rtol=solver.preconditioner.ftol)
       catch
         @warn "Preconditioner factorization failed, falling back to identity matrix..."
         I
       end
-      =#
     end
     verbose && @printf "Preconditioner assembly time: %1.3fs\n" pre_time
     (true, Hf)

@@ -32,9 +32,17 @@ struct DefaultKernel end
 
 function gen_kernel(ks::KrylovSolver{P,DefaultKernel},
                     pts::Vector{SVector{D,Float64}}, 
-                    Ω::NTuple{D,Float64}) where{P,D}
+                    Ω) where{P,D}
   _k  = D == 1 ? SincKernel : KaiserKernel
   _ks = KrylovSolver(ks.preconditioner, _k, ks.perturbation, ks.maxit)
+  gen_kernel(_ks, pts, Ω)
+end
+
+function gen_kernel(ks::SketchSolver{DefaultKernel},
+                    pts::Vector{SVector{D,Float64}}, 
+                    Ω) where{D}
+  _k  = D == 1 ? SincKernel : KaiserKernel
+  _ks = KrylovSolver(ks.preconditioner, _k, 0.0, ks.maxit)
   gen_kernel(_ks, pts, Ω)
 end
 
@@ -140,8 +148,7 @@ end
 fouriertransform(mk::MaternKernel, w) = matern_sdf(w, (1.0, mk.rho, mk.nu))
 
 function gen_kernel(ks::KrylovSolver{P,MaternKernel},
-                    pts::Vector{SVector{D,Float64}}, 
-                    Ω::NTuple{D,Float64}) where{P,D}
+                    pts::Vector{SVector{D,Float64}}, Ω) where{P,D}
   MaternKernel(0.5*sqrt(inv(maximum(Ω))), 4.5, ks.perturbation)
 end
 
@@ -163,8 +170,7 @@ end
 
 
 function gen_kernel(ks::KrylovSolver{P,KaiserKernel},
-                    pts::Vector{SVector{D,Float64}}, 
-                    Ω::NTuple{D,Float64}) where{P,D}
+                    pts::Vector{SVector{D,Float64}}, Ω) where{P,D}
   kv = ntuple(D) do j
     ptsj     = getindex.(pts, j)
     (_a, _b) = extrema(x->x[1], ptsj)
