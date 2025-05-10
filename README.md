@@ -113,6 +113,9 @@ fabulously small bandwidth but it will not be able to resolve high frequencies.
 In a setting like that, we suggest computing and analyzing two separate
 estimators for each measured interval.
 
+**NOTE:** a less sophisticated 2D prolate window is also available. See the
+example files for a demonstration.
+
 # Experimental features/interfaces
 
 ## `Krylov.jl`-powered implicit methods for weight computation
@@ -133,17 +136,6 @@ an extension of this package using
 that offers a truly `O(n \log n)` preconditioner, and so you can still estimate
 SDFs from hundreds of thousands of points in seconds. See
 `./example/big_demo.jl` for an example.
-
-## 2D process estimation
-
-Support for multi-dimensional processes is ongoing. For now, the only
-multi-dimensional window that is implemented and exported is a tensor product of
-1D windows. Additionally, the preconditioner strategy used in the Krylov methods
-needs to be tuned. But with all of that said, you can see the entire workflow in
-action in `./examples/simple_demo_2d.jl`. In particular, other than the window
-construction the estimation interface is completely dimension-agnostic. This is
-a primary focus of development and you should expect both the window tooling and
-efficiency in the linear system solver to improve in the next couple months.
 
 # Roadmap
 
