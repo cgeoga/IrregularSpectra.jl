@@ -19,7 +19,7 @@ end
 # low-rank structure in the normal equation system to accelerate computations.
 # this is a direct method. For certain kernels in certain dimensions, however,
 # you might expect the rank of the normal equation matrix to be about n/2, so
-# you'll still die in O(n^3) land. And so you should either use a GaussKernel or
+# you'll still die in O(n^3) land. And so you should either use a KaiserKernel or
 # instead just use the KrylovSolver below.
 #
 # NOTE: the method 
@@ -58,24 +58,26 @@ struct KrylovSolver{P,K} <: LinearSystemSolver where{P,K}
 end
 
 abstract type KrylovPreconditioner end
-
-function KrylovSolver(p, pre_kernel::Type{K}=DefaultKernel; 
-                      perturbation=1e-8, maxit=500) where{K}
-  KrylovSolver(p, pre_kernel, perturbation, maxit)
-end
                       
 struct HMatrixPreconditioner <: KrylovPreconditioner
   tol::Float64  # generic suggestion: 1e-8
   ftol::Float64 # generic suggestion: 1e-8
 end
+default_perturb(pre::HMatrixPreconditioner)  = 1e-6
 
 struct VecchiaPreconditioner <: KrylovPreconditioner
   ncond::Int64 # generic suggestion: 50
   nfsa::Int64  # generic suggestion: 30
 end
+default_perturb(pre::VecchiaPreconditioner)  = 1e-3
 
 struct CholeskyPreconditioner <: KrylovPreconditioner end
+default_perturb(pre::CholeskyPreconditioner) = 1e-10
 
+function KrylovSolver(p; pre_kernel::Type{K}=DefaultKernel,
+                      perturbation=default_perturb(p), maxit=500) where{K}
+  KrylovSolver(p, pre_kernel, perturbation, maxit)
+end
 
 function krylov_preconditioner!(pts_sa, Ω, solver::KrylovSolver{CholeskyPreconditioner,K};
     verbose=false) where{K}
@@ -124,8 +126,7 @@ function default_solver(pts; perturbation=1e-10)
 
       """
     end
-    return KrylovSolver(CholeskyPreconditioner(), DefaultKernel; 
-                        perturbation=perturbation)
+    return KrylovSolver(CholeskyPreconditioner(); perturbation=perturbation)
   end
 end
 

@@ -168,15 +168,15 @@ function fouriertransform(kk::KaiserKernel{D}, w::SVector{D,Float64}) where{D}
   prod(j->fouriertransform(kk.kv[j], w[j]), 1:D)
 end
 
-
 function gen_kernel(ks::KrylovSolver{P,KaiserKernel},
                     pts::Vector{SVector{D,Float64}}, Ω) where{P,D}
+  D == 1 && @warn "The Kaiser preconditioner kernel in 1D is not advisable---it can easily result in not controlling frequencies small than Ω. Please use a SincKernel instead."
   kv = ntuple(D) do j
     ptsj     = getindex.(pts, j)
     (_a, _b) = extrema(x->x[1], ptsj)
     ab       = (_a + _b)/2
     (a, b)   = (_a - ab, _b-ab)
-    Kaiser(Ω[j]*pi, a=a, b=b)
+    Kaiser(Ω[j]*5, a=a, b=b)
   end
   KaiserKernel(kv, ks.perturbation)
 end

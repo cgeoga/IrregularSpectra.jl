@@ -1,7 +1,7 @@
 
 module IrregularSpectraSketchingExt
 
-  using IrregularSpectra, LowRankApprox, BandlimitedOperators, WoodburyMatrices
+  using IrregularSpectra, LowRankApprox#, BandlimitedOperators, WoodburyMatrices
   using IrregularSpectra.LinearAlgebra
   using IrregularSpectra.Printf
 
@@ -18,6 +18,11 @@ module IrregularSpectraSketchingExt
     Fqr\b
   end
 
+  # This method that specifically applies to the kernel-preconditioner approach
+  # for KrylovSolvers seems to me to be of dubious value after some
+  # experimentation. So I think I'll make the extension simpler for now and
+  # withold it.
+  #=
   function IrregularSpectra.solve_linsys(pts, win, Ω, solver::SketchSolver{K}; 
                                          verbose=false) where{K}
     (wgrid, glwts) = glquadrule(IrregularSpectra.krylov_nquad(pts, win), .-Ω, Ω)
@@ -36,6 +41,7 @@ module IrregularSpectraSketchingExt
     rhs = vec(ft1'*(rhs.*Dv))
     wood\rhs
   end
+  =#
 
 end
 

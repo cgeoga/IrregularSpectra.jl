@@ -20,8 +20,8 @@ module IrregularSpectraHMatricesExt
       Hf = try
         #cholesky(H) # when HMatrices.jl#80 lands
         lu(H; rtol=solver.preconditioner.ftol)
-      catch
-        @warn "Preconditioner factorization failed, falling back to identity matrix..."
+      catch er
+        @warn "Preconditioner factorization failed with error $er, falling back to identity matrix..."
         I
       end
     end

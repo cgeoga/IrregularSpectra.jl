@@ -21,8 +21,8 @@ end
 # even though we have 50k points and have to solve a dense linear system you get
 # your estimates in a few seconds.
 window = Kaiser(6.0, a=a, b=b)
-solver = KrylovSolver(HMatrixPreconditioner(1e-8, 1e-8))
-freqs  = range(0.0, 1000.0, length=20) # just a freq freqs so the print summary below is short
+solver = KrylovSolver(HMatrixPreconditioner(1e-12, 1e-12))
+freqs  = range(0.0, 750.0, length=20) # just a freq freqs so the print summary below is short
 est    = estimate_sdf(pts, sims, window; solver=solver, frequencies=freqs)
 
 # Brief inspection of the output:

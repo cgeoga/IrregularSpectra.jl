@@ -60,7 +60,7 @@ solved. Options are:
     `HMatrices.jl` and using the `HMatrixPreconditioner(atol, lu_atol)`, which
     will scale _much_ better. The second argument, `pre_kernel`, is a _type_ that
     that is an internal detail in assembling the preconditioned linear system. 
-    In general, we suggest using `SincKernel` in 1D, and `GaussKernel` in 2+D. Finally,
+    In general, we suggest using `SincKernel` in 1D, and `KaiserKernel` in 2+D. Finally,
     `perturbation` is another interal detail in the preconditioned linear system.
     A higher value will make certain preconditioners more stable, but slow down convergence.
     We suggest a default choice of `1e-8`. See the example files for a demo of using

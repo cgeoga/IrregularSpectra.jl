@@ -48,6 +48,27 @@ function glquadrule(n::Int64, a, b)
   (no, wt)
 end
 
+function simple_adaptive_integrate(fn::F, a, b; init_size=128, 
+                                   max_size=2^15, ctol=1e-10) where{F}
+  n       = init_size
+  rule_n  = glquadrule(n, a, b)
+  rule_2n = glquadrule(2*n, a, b)
+  int_n   = dot(fn.(rule_n[1]),  rule_n[2])
+  int_2n  = dot(fn.(rule_2n[1]), rule_2n[2])
+  isconv  = abs(int_n - int_2n)/abs(int_2n) < ctol
+  while !isconv
+    @info "doubling...$(2*n)"
+    n      *=  2
+    n > max_size && throw(error("Could not reach convergence tolerance $ctol with <$max_size nodes."))
+    rule_n  = rule_2n
+    rule_2n = glquadrule(2*n, a, b)
+    int_n   = int_2n
+    int_2n  = dot(fn.(rule_2n[1]), rule_2n[2])
+    isconv  = abs(int_n - int_2n)/abs(int_2n) < ctol
+  end
+  int_2n
+end
+
 function glquadrule(nv::NTuple{N, Int64}, a::NTuple{N,Float64},
                     b::NTuple{N,Float64}) where{N}
   no_wt_v = [glquadrule(nv[j], a[j], b[j]) for j in 1:N]
