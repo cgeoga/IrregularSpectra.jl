@@ -91,11 +91,11 @@ this case as follows:
 using IrregularSpectra
 
 # Your irregularly sampled points, supported on the listed intervals.
-intervals = [(a_1, b_1), ..., (a_k, b_k)]
+intervals = [(a_1, b_1), ..., (a_k, b_k)] # see below for automatic interval detection (WIP!)
 pts       = [...] # your measurement locations
 data      = [...] # your measurement values 
 
-window = Prolate1D(bandwidth, intervals)
+window = Prolate1D(default_prolate_bandwidth(intervals), intervals)
 estimator = estimate_sdf(pts, data, window)
 ```
 

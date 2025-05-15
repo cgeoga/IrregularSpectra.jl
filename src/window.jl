@@ -154,6 +154,13 @@ end
 
 bandwidth(p::Prolate1D) = p.bandwidth
 
+function default_prolate_bandwidth(intervals::Vector{NTuple{2,Float64}}) 
+  minimum(intervals) do ivj
+    (aj, bj) = ivj
+    5.0/(bj - aj)
+  end
+end
+
 slepkernel(xmy::Float64, bw::Float64) = sinc(2*bw*xmy)
 
 function krylov_nquad(pts::Vector{Float64}, p::Prolate1D)
@@ -166,8 +173,7 @@ end
 function linsys_rhs(p::Prolate1D, wgrid::AbstractVector{Float64})
   # Step 1: compute the prolate on a coarse grid that just resolves the Nyquist
   # frequency using a dense eigendecomposition.
-  corder = max(512, 5*prolate_minimal_m(p))
-  (cnodes, cweights) = segment_glquadrule(p.intervals, corder) 
+  (cnodes, cweights) = segment_glquadrule_nyquist(p.intervals, 2*p.bandwidth) 
   cslep = prolate_fromrule(p.bandwidth, cnodes, cweights)
   # Step 2: interpolate that coarse prolate up to a sufficiently large fine grid
   # that you can resolve all the oscillations in wgrid.
