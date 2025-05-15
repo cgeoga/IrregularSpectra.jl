@@ -137,16 +137,25 @@ that offers a truly `O(n \log n)` preconditioner, and so you can still estimate
 SDFs from hundreds of thousands of points in seconds. See
 `./example/big_demo.jl` for an example.
 
+## Automatic gap splitting in 1D
+
+Given an arbitrary collection of sorted points in 1D `pts`,
+`gappy_intervals(pts; kwargs...)` attempts to automatically identity
+sub-intervals of `(pts[1], pts[end])` without significant gaps and returns the
+result in the format required for the `Prolated1D` constructor:
+```julia 
+  using IrregularSpectra
+  pts    = sort(vcat(rand(1000).*2.0 .- 1.0, rand(2000).*4.0 .+ 8.0))
+  ivs    = gappy_intervals(pts)
+  window = Prolate1D(5.0, ivs) # Prolate with (half-)bandwidth of 5
+  [...] # downstream tasks
+```
+
 # Roadmap
 
 This software library is under very active development. An incomplete list of
 features to expect in the near future:
 
-- A heuristic tool for handling potentially gappy one-dimensional domains that
-  adaptively splits the data domain into disjoint segments based on large gaps
-  and balancing the tradeoff between reducing the norm of the weights and the
-  off-lobe power in the spectral window. This is again something we have
-  implemented and all that is left to do is to polish it.
 - An interface for providing arbitrary points in arbitrary dimensions and
   obtaining prolate function evaluations and right-hand sides for weight
   calculation. This is done _except_ for the step of a designing a robust function

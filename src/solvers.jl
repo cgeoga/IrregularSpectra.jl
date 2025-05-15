@@ -46,10 +46,11 @@ SketchSolver(sketchtol::Float64) = SketchSolver(IdentityKernel, sketchtol, 1e-12
 #
 # NOTE: the methods
 #
-# solve_linsys(pts, win, Ω, solver::KrylovSolver{HMatrixPreconditioner}; verbose)
-# solve_linsys(pts, win, Ω, solver::KrylovSolver{VecchiaPreconditioner}; verbose)
+# solve_linsys(pts, win, Ω, solver::KrylovSolver{HMatrixPreconditioner};   verbose)
+# solve_linsys(pts, win, Ω, solver::KrylovSolver{VecchiaPreconditioner};   verbose)
+# solve_linsys(pts, win, Ω, solver::KrylovSolver{SparseLDLPreconditioner}; verbose)
 #
-# is defined in an extension.
+# are defined in an extension.
 struct KrylovSolver{P,K} <: LinearSystemSolver where{P,K}
   preconditioner::P
   pre_kernel::Type{K}
@@ -74,6 +75,11 @@ default_perturb(pre::VecchiaPreconditioner)  = 1e-3
 struct CholeskyPreconditioner <: KrylovPreconditioner end
 default_perturb(pre::CholeskyPreconditioner) = 1e-10
 
+struct SparseLDLPreconditioner <: KrylovPreconditioner
+  drop_tol::Float64
+end
+default_perturb(pre::SparseLDLPreconditioner) = 1e-10
+
 function KrylovSolver(p; pre_kernel::Type{K}=DefaultKernel,
                       perturbation=default_perturb(p), maxit=500) where{K}
   KrylovSolver(p, pre_kernel, perturbation, maxit)
@@ -94,7 +100,7 @@ function solve_linsys(pts, win, Ω, solver::KrylovSolver; verbose=false)
   pts_sa         = static_points(pts)
   wgrid_sa       = static_points(wgrid)
   kernel         = gen_kernel(solver, pts_sa, Ω)
-  D              = Diagonal(sqrt.(glwts.*fouriertransform.(Ref(kernel), wgrid)))
+  D              = Diagonal(sqrt.(glwts.*fouriertransform(kernel, wgrid)))
   (_ldiv, pre)   = krylov_preconditioner!(pts_sa, Ω, solver; verbose=verbose)
   F              = NUFFT3(pts_sa, collect(wgrid_sa.*(2*pi)), false, 1e-15, D)
   vrb            = verbose ? 10 : 0

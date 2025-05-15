@@ -9,6 +9,9 @@ module IrregularSpectra
 
   include("utils.jl")
 
+  include("intervals.jl")
+  export gappy_intervals
+
   include("nufft.jl")
 
   include("solvers.jl")

@@ -118,9 +118,9 @@ struct SpectralDensityEstimator{O,F,W}
 end
 
 """
-estimate_sdf(pts::Vector{Float64}, data, g; Ω=default_Ω(pts, g),
+`estimate_sdf(pts::Vector{Float64}, data, g; Ω=default_Ω(pts, g),
              frequencies=default_frequencies(pts, g, Ω),
-             wts=nothing, kwargs...) -> (frequencies, estimates)
+             wts=nothing, kwargs...) -> (frequencies, estimates)`
 
 Estimates the spectral density for the stationary process sampled at locations
 `pts` and with values given by `data` at frequencies `frequencies`. Each column
