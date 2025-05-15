@@ -164,10 +164,13 @@ end
 slepkernel(xmy::Float64, bw::Float64) = sinc(2*bw*xmy)
 
 function krylov_nquad(pts::Vector{Float64}, p::Prolate1D)
+  #=
   out = maximum(p.intervals) do (aj, bj)
     count(x-> aj <= x <= bj, pts)
   end
   4*out + 100
+  =#
+  4*length(pts) + 100
 end
 
 function linsys_rhs(p::Prolate1D, wgrid::AbstractVector{Float64})

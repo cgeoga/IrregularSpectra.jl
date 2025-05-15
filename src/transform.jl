@@ -101,7 +101,8 @@ function window_quadrature_weights(pts, g; solver=default_solver(pts),
   wts    = solve_linsys(pts, g, Ω, solver, verbose=verbose)
   verbose && @printf "||α||₂:             %1.5e\n" norm(wts)
   while norm(wts) > max_wt_norm
-    Ω    .*= reduction_factor
+    Ω      =  Ω.*reduction_factor
+    verbose && @printf "||α||₂ > max_wt_norm: reducing to Ω=%1.3e and re-computing weights...\n" Ω
     all(Ω .< min_Ω) && throw(error("Could not achieve ||α||₂ < $max_wt_norm for Ω .> $min_Ω."))
     wts    = solve_linsys(pts, g, Ω, solver, verbose=verbose)
     verbose && @printf "||α||₂:             %1.5e\n" norm(wts)
