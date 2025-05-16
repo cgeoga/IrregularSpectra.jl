@@ -112,6 +112,7 @@ function GaussKernel(Mv::NTuple{D,Float64}; perturbation=1e-8) where{D}
   pmv = prod(Mv)
   GaussKernel(Mv, pmv, perturbation)
 end
+GaussKernel(M::Float64; perturbation=1e-8) = GaussKernel((M,); perturbation=perturbation)
 
 function (gk::GaussKernel{D})(x::SVector{D,Float64}, y::SVector{D,Float64}) where{D}
   inner = sum(j->abs2(gk.Mv[j]*(x[j] - y[j])), 1:D)
@@ -128,10 +129,13 @@ function fouriertransform(gk::GaussKernel{D}, wv::Vector{SVector{D,Float64}}) wh
   fouriertransform.(Ref(gk), wv)
 end
 
+function fouriertransform(gk::GaussKernel{1}, wv::Vector{Float64})
+  [fouriertransform(gk, SA[w]) for w in wv]
+end
+
 function gen_kernel(ks::KrylovSolver{P,GaussKernel},
                     pts::Vector{SVector{D,Float64}}, Ω) where{P,D}
-  #GaussKernel(Ω.*0.6; perturbation=ks.perturbation)
-  GaussKernel(Ω; perturbation=ks.perturbation)
+  GaussKernel(Ω.*0.6; perturbation=ks.perturbation)
 end
 
 function gen_kernel(ks::SketchSolver{GaussKernel},

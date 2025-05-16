@@ -15,13 +15,13 @@ module IrregularSpectra
   include("nufft.jl")
 
   include("solvers.jl")
-  export DenseSolver, SketchSolver, KrylovSolver, CholeskyPreconditioner, HMatrixPreconditioner
+  export DenseSolver, SketchSolver, KrylovSolver, CholeskyPreconditioner, HMatrixPreconditioner, SparsePreconditioner
 
   include("window.jl")
   export Kaiser, Sine, Prolate1D, default_prolate_bandwidth, Prolate2D, TensorProduct2DWindow
 
   include("kernels.jl")
-  export SincKernel, KaiserKernel
+  export SincKernel, GaussKernel
 
   include("transform.jl")
   export window_quadrature_weights, estimate_sdf

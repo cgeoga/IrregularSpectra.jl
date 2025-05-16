@@ -46,9 +46,9 @@ SketchSolver(sketchtol::Float64) = SketchSolver(IdentityKernel, sketchtol, 1e-12
 #
 # NOTE: the methods
 #
-# solve_linsys(pts, win, Ω, solver::KrylovSolver{HMatrixPreconditioner};   verbose)
-# solve_linsys(pts, win, Ω, solver::KrylovSolver{VecchiaPreconditioner};   verbose)
-# solve_linsys(pts, win, Ω, solver::KrylovSolver{SparseLDLPreconditioner}; verbose)
+# solve_linsys(pts, win, Ω, solver::KrylovSolver{HMatrixPreconditioner}; verbose)
+# solve_linsys(pts, win, Ω, solver::KrylovSolver{VecchiaPreconditioner}; verbose)
+# solve_linsys(pts, win, Ω, solver::KrylovSolver{SparsePreconditioner};  verbose)
 #
 # are defined in an extension.
 struct KrylovSolver{P,K} <: LinearSystemSolver where{P,K}
@@ -75,10 +75,10 @@ default_perturb(pre::VecchiaPreconditioner)  = 1e-3
 struct CholeskyPreconditioner <: KrylovPreconditioner end
 default_perturb(pre::CholeskyPreconditioner) = 1e-10
 
-struct SparseLDLPreconditioner <: KrylovPreconditioner
+struct SparsePreconditioner <: KrylovPreconditioner
   drop_tol::Float64
 end
-default_perturb(pre::SparseLDLPreconditioner) = 1e-10
+default_perturb(pre::SparsePreconditioner) = 1e-10
 
 function KrylovSolver(p; pre_kernel::Type{K}=DefaultKernel,
                       perturbation=default_perturb(p), maxit=500) where{K}
