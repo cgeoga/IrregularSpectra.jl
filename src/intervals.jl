@@ -53,7 +53,7 @@ function interval_coalesce!(intervals, tol)
 end
 
 """
-`gappy_intervals(pts::Vector{Float64}; gaptol=20, minlen=64, coalesce_tol=0.05) -> Vector{NTuple{2,Float64}}`
+`gappy_intervals(pts::Vector{Float64}; gaptol=8, minlen=128, coalesce_tol=0.005) -> Vector{NTuple{2,Float64}}`
 
 Given a collection of (sorted!) 1D measurement locations `pts`, returns an attempt at automatically partitioning those points into sub-segments without large measurement gaps. 
 
@@ -67,7 +67,7 @@ Keyword arguments:
 
 This is a **very heuristic** function, that is really offered just as a convenience for exploratory analysis. Please do not automatically use this on something important without inspecting the result.
 """
-function gappy_intervals(pts::Vector{Float64}; gaptol=20, minlen=64, coalesce_tol=0.05)
+function gappy_intervals(pts::Vector{Float64}; gaptol=8, minlen=128, coalesce_tol=0.005)
   @warn "This functionality (`gappy_intervals)` is a work in progress! Please sanity check the result and use with caution. And open an issue if you hit an edge case that doesn't work well!" maxlog=1
   out = _interval_gaps(pts, gaptol, minlen)
   filter!(x->x!=(0.0, 0.0), out)
