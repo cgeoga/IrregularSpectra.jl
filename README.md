@@ -162,9 +162,4 @@ features to expect in the near future:
   for automatically obtaining a quadrature rule on the point domain given just
   points. But good tools exist for triangulation-based methods, and so we just
   need to hook into them. Contributions in this space would certainly be welcome.
-- A tool for classifying different categories of sampling schemes. Samples on a
-  regular grid can be handled much faster, and same for a gappy regular grid
-  (although with different mechanisms for each). It would be very nice for this
-  tool to be sufficiently general that it takes _any_ points and gives you back
-  a decent estimator that has been computed as rapidly as possible.
 
