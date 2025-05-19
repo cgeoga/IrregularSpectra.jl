@@ -86,11 +86,29 @@ function KrylovSolver(p; pre_kernel::Type{K}=DefaultKernel,
 end
 
 function krylov_preconditioner!(pts_sa, Ω, solver::KrylovSolver{CholeskyPreconditioner,K};
-    verbose=false) where{K}
+                                verbose=false) where{K}
   kernel = gen_kernel(solver, pts_sa, Ω)
   M = threaded_km_assembly(kernel, pts_sa)
   pre_time = @elapsed Mf = cholesky!(M)
   verbose && @printf "Preconditioner assembly time: %1.3fs\n" pre_time
+  (true, Mf)
+end
+
+function krylov_preconditioner!(pts_sa::Vector{SVector{1,Float64}}, Ω,
+                                solver::KrylovSolver{SparsePreconditioner, K}; verbose=false) where{K}
+  _pts   = getindex.(pts_sa, 1)
+  issorted(_pts) || throw(error("For 1D sparse preconditioner, please pre-sort your points.")) 
+  kernel = gen_kernel(solver, pts_sa, Ω)
+  radius = kernel_tol_radius(Val(1), kernel, solver.preconditioner.drop_tol)
+  pre_time = @elapsed begin
+    ixs = [inrange1d(_pts, x[], radius) for x in pts_sa]
+    I   = reduce(vcat, ixs)
+    J   = reduce(vcat, [fill(j, length(ixs[j])) for j in eachindex(ixs)])
+    V   = [kernel(_pts[jk[1]], _pts[jk[2]]) for jk in zip(I, J)]
+    S   = Symmetric(sparse(I, J, V))
+    Mf  = LDivWrapper(ldlt(S))
+  end
+  verbose && @printf "preconditioner assembly time: %1.3fs\n" pre_time
   (true, Mf)
 end
 

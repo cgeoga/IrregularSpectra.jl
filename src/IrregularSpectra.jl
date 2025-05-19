@@ -21,7 +21,6 @@ module IrregularSpectra
   export Kaiser, Sine, Prolate1D, default_prolate_bandwidth, Prolate2D, TensorProduct2DWindow
 
   include("kernels.jl")
-  export SincKernel, GaussKernel
 
   include("transform.jl")
   export window_quadrature_weights, estimate_sdf

@@ -160,17 +160,30 @@ function (mk::MaternKernel)(x, y)
   matern_cov(x-y, (1.0, mk.rho, mk.nu)) + Float64(x==y)*mk.perturbation
 end
 
-#=
-fouriertransform(mk::MaternKernel, w) = matern_sdf(w, (1.0, mk.rho, mk.nu))
+fouriertransform(mk::MaternKernel, w::Float64) = matern_sdf(w, (1.0, mk.rho, mk.nu))
+fouriertransform(mk::MaternKernel, w::SVector{D,Float64}) where{D} = matern_sdf(w, (1.0, mk.rho, mk.nu))
 
-function fouriertransform(mk::MaternKernel{D}, wv::Vector{SVector{D,Float64}}) where{D}
-  fouriertransform.(Ref(mk), wv)
+function fouriertransform(mk::MaternKernel, wv::AbstractVector)
+  [fouriertransform(mk, w) for w in wv]
 end
-=#
 
 function gen_kernel(ks::KrylovSolver{P,MaternKernel},
-                    pts::Vector{SVector{D,Float64}}, Ω) where{P,D}
+                    pts::Vector{SVector{1,Float64}}, Ω) where{P}
+  MaternKernel(0.75*inv(maximum(Ω)), 4.5, ks.perturbation)
+end
+
+function gen_kernel(ks::KrylovSolver{P,MaternKernel},
+                    pts::Vector{SVector{2,Float64}}, Ω) where{P}
   MaternKernel(0.5*sqrt(inv(maximum(Ω))), 4.5, ks.perturbation)
+end
+
+# Only implemented in 1D for now.
+function kernel_tol_radius(::Val{1}, mk::MaternKernel, tol::Float64)
+  b = mk.rho
+  while mk(0.0, b) > tol
+    b *= 2
+  end
+  gss(t->(mk(0.0, t) - tol)^2, 0.0, b)
 end
 
 #

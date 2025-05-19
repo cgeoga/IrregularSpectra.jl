@@ -151,3 +151,57 @@ function sparse_rchol(kfn, pts; k=20)
   (LowerTriangular(L), Diagonal(D))
 end
 
+# TODO (cg 2025/05/16 15:39): Weirdly, ldiv!(ch::CHOLMOD.Factor[...], rhs) or
+# whatever doesn't exist. So we need this little wrapper. I think this is
+# fixed in 1.12, but probably good to support LTS.
+struct LDivWrapper{T}
+  M::T
+end
+
+Base.eltype(ldw::LDivWrapper{T}) where{T}  = eltype(ldw.M)
+Base.size(ldw::LDivWrapper{T}) where{T}    = size(ldw.M)
+Base.size(ldw::LDivWrapper{T}, j) where{T} = size(ldw.M, j)
+
+function LinearAlgebra.ldiv!(ldw::LDivWrapper{T}, v::Vector{ComplexF64}) where{T}
+  tmp = ldw.M\v
+  v  .= tmp
+end
+
+function LinearAlgebra.ldiv!(buf::Vector{ComplexF64}, ldw::LDivWrapper{T}, v::Vector{ComplexF64}) where{T}
+  buf .= v
+  ldiv!(ldw, buf)
+end
+
+function inrange1d(pts::Vector{Float64}, x::Float64, radius::Float64)
+  i1 = max(searchsortedfirst(pts, x-radius), 1)
+  i2 = min(searchsortedfirst(pts, x+radius), length(pts))
+  i1:i2
+end
+
+function gss(obj, _a, _b; maxit=1000, atol=1e-8)
+  (a,b) = (_a, _b)
+  c = b - (b-a)/MathConstants.golden
+  d = a + (b-a)/MathConstants.golden
+  (oc, od) = (obj(c), obj(d))
+  for _ in 1:maxit
+    if oc < od
+      b=d
+      d=c
+      c= b - (b-a)/MathConstants.golden
+      od=oc
+      oc=obj(c)
+    else
+      a=c
+      c=d
+      d=a + (b-a)/MathConstants.golden
+      oc=od
+      od=obj(d)
+    end
+    if abs(b-a)<atol
+      (isequal(a, _a) || isequal(b, _b)) && throw(error("No solution found in window ($_a, $_b)"))
+      return (b+a)/2
+    end
+  end
+  throw(error("No convergence to tolerance $atol in $maxit iterations."))
+end
+
