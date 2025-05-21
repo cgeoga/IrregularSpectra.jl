@@ -80,8 +80,8 @@ struct SparsePreconditioner <: KrylovPreconditioner
 end
 default_perturb(pre::SparsePreconditioner) = 1e-10
 
-function KrylovSolver(p; pre_kernel::Type{K}=DefaultKernel,
-                      perturbation=default_perturb(p), maxit=500) where{K}
+function KrylovSolver(p; pre_kernel::Type{K}=DefaultKernel, maxit=500,
+                      perturbation=default_perturb(p)) where{K}
   KrylovSolver(p, pre_kernel, perturbation, maxit)
 end
 

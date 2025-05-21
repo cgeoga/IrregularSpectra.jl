@@ -135,7 +135,7 @@ end
 
 function gen_kernel(ks::KrylovSolver{P,GaussKernel},
                     pts::Vector{SVector{D,Float64}}, Ω) where{P,D}
-  GaussKernel(Ω.*0.6; perturbation=ks.perturbation)
+  GaussKernel(Ω; perturbation=ks.perturbation)
 end
 
 function gen_kernel(ks::SketchSolver{GaussKernel},
@@ -179,11 +179,12 @@ end
 
 # Only implemented in 1D for now.
 function kernel_tol_radius(::Val{1}, mk::MaternKernel, tol::Float64)
-  b = mk.rho
+  b  = mk.rho
+  m0 = mk(0.0, 0.0)
   while mk(0.0, b) > tol
     b *= 2
   end
-  gss(t->(mk(0.0, t) - tol)^2, 0.0, b)
+  gss(t->(mk(0.0, t)/m0 - tol)^2, 0.0, b)
 end
 
 #
