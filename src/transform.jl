@@ -99,13 +99,13 @@ function window_quadrature_weights(pts, g; solver=default_solver(pts),
                                    Ω=default_Ω(pts, g), max_wt_norm=Inf, 
                                    min_Ω=0.05.*Ω, reduction_factor=0.9, verbose=true)
   wts    = solve_linsys(pts, g, Ω, solver, verbose=verbose)
-  verbose && @printf "||α||₂:             %1.5e\n" norm(wts)
-  while norm(wts) > max_wt_norm
+  verbose && @printf "maxⱼ ||αⱼ||₂:             %1.5e\n" max_col_norm(wts)
+  while max_col_norm(wts) > max_wt_norm 
     Ω      =  Ω.*reduction_factor
-    verbose && @printf "||α||₂ > max_wt_norm: reducing to Ω=%1.3e and re-computing weights...\n" Ω
+    verbose && @printf "maxⱼ ||αⱼ||₂ > max_wt_norm: reducing to Ω=%1.3e and re-computing weights...\n" Ω
     all(Ω .< min_Ω) && throw(error("Could not achieve ||α||₂ < $max_wt_norm for Ω .> $min_Ω."))
     wts    = solve_linsys(pts, g, Ω, solver, verbose=verbose)
-    verbose && @printf "||α||₂:             %1.5e\n" norm(wts)
+    verbose && @printf "maxⱼ ||αⱼ||₂:             %1.5e\n" max_col_norm(wts)
   end
   (Ω, wts)
 end
@@ -115,7 +115,7 @@ struct SpectralDensityEstimator{O,F,W}
   win::W
   freq::Vector{F}
   sdf::Vector{Float64}
-  wts::Vector{ComplexF64}
+  wts::Matrix{ComplexF64}
 end
 
 """
@@ -139,9 +139,11 @@ function estimate_sdf(pts, data, g; Ω=default_Ω(pts, g), wts=nothing,
     (Ω, wts) = window_quadrature_weights(pts, g; Ω=Ω, kwargs...)
   end
   fs  = NUFFT3(pts, collect(frequencies.*(2*pi)), true, 1e-15)
-  out = zeros(ComplexF64, length(frequencies), size(data, 2))
-  mul!(out, fs, complex(Diagonal(wts)*data))
-  SpectralDensityEstimator(Ω, g, collect(frequencies), 
-                           mean(x->abs2.(x), eachcol(out)), wts)
+  tmp = zeros(ComplexF64, length(frequencies), size(data, 2))
+  est = mean(eachcol(wts)) do wtsj
+    mul!(tmp, fs, complex(Diagonal(wtsj)*data))
+    abs2.(tmp)
+  end
+  SpectralDensityEstimator(Ω, g, collect(frequencies), vec(mean(est, dims=2)), wts)
 end
 

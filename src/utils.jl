@@ -1,4 +1,6 @@
 
+max_col_norm(M) = maximum(norm, eachcol(M))
+
 function irtrapweights(pts)
   out = zeros(length(pts))
   out[1]   = 0.5*(pts[2]-pts[1])

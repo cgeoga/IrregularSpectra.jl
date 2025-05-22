@@ -151,6 +151,20 @@ result in the format required for the `Prolated1D` constructor:
   [...] # downstream tasks
 ```
 
+## Multitaper estimators in 1D
+
+If you pick a generous enough bandwidth that multiple prolate functions have
+good concentration, `IrregularSpectra.jl` will automatically provide you with a
+[multitaper estimator](https://en.wikipedia.org/wiki/Multitaper). By default, 
+for data observed on an interval with no large gaps, the default bandwidth is 
+chosen so that three well-concentrated tapers are available. 
+
+Please note that, unlike in the well-behaved gridded 1D case, estimating the SDF
+for processes observed at irregular locations and an SDF supported on the entire
+real line means dramatically reducing how far in the spectrum you can safely
+look. For this reason, cranking up the bandwidth and trying to use many tapers
+can produce more dramatic visible artifacts.
+
 # Roadmap
 
 This software library is under very active development. An incomplete list of

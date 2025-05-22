@@ -85,7 +85,7 @@ function fouriertransform(ka::Kaiser, w::Float64)
   (cispi(2*w*c/s)/s)*unitkbwindow_ft(w/s, ka.beta)/ka.normalizer
 end
 
-linsys_rhs(ka::Kaiser, frequency_grid) = fouriertransform.(Ref(ka), frequency_grid)
+linsys_rhs(ka::Kaiser, frequency_grid) = hcat(fouriertransform.(Ref(ka), frequency_grid))
 
 
 #
@@ -130,7 +130,7 @@ function fouriertransform(sw::Sine, ω)
   (cispi(2*ω*c/s)/s)*unit_sinewindow_ft(ω/s)*sqrt(s)
 end
 
-linsys_rhs(sw::Sine, fgrid) = fouriertransform.(Ref(sw), fgrid)
+linsys_rhs(sw::Sine, fgrid) = hcat(fouriertransform.(Ref(sw), fgrid))
 
 
 #
@@ -138,7 +138,7 @@ linsys_rhs(sw::Sine, fgrid) = fouriertransform.(Ref(sw), fgrid)
 #
 
 """
-Prolate1D(bandwidth::Float64, intervals::Vector{NTuple{2,Float64}})
+`Prolate1D(bandwidth::Float64, intervals::Vector{NTuple{2,Float64}}, ntaper::Int64)`
 
 A (generalized) prolate function with support on `intervals` and half-bandwidth
 `bandwidth`. Unlike a closed-form window like the Kaiser, this function and its
@@ -146,10 +146,21 @@ Fourier transform are only available by numerical solving an integral eigenvalue
 problem. Because of this, scalar evaluation methods like `(p::Prolate1D)(x)` or
 `IrregularSpectra.fouriertransform(p::Prolate1D, ω::Float64)` are intentionally
 not implemented.
+
+`Prolate1D` has the construction method
+
+`Prolate1D(intervals; 
+           bandwidth=default_bandwidth(intervals),
+           ntaper=default_ntaper(intervals, bandwidth))`
+
+which automatically selects the bandwidth and a number of tapers (potentially
+greater than 1). When `ntapers>1`, the estimator you will obtain is a multitaper
+estimator.
 """
 struct Prolate1D <: ImplicitWindow
   bandwidth::Float64
   intervals::Vector{NTuple{2,Float64}}
+  ntaper::Int64
 end
 
 bandwidth(p::Prolate1D) = p.bandwidth
@@ -161,30 +172,34 @@ function default_prolate_bandwidth(intervals::Vector{NTuple{2,Float64}})
   end
 end
 
-slepkernel(xmy::Float64, bw::Float64) = sinc(2*bw*xmy)
-
-function krylov_nquad(pts::Vector{Float64}, p::Prolate1D)
-  #=
-  out = maximum(p.intervals) do (aj, bj)
-    count(x-> aj <= x <= bj, pts)
+function default_ntaper(intervals, bandwidth)
+  minspacewidth = minimum(intervals) do ivj
+    ivj[2] - ivj[1]
   end
-  4*out + 100
-  =#
-  4*length(pts) + 100
+  max(1, Int(floor(bandwidth*(minspacewidth)))-2)
 end
+
+function Prolate1D(intervals::Vector{NTuple{2,Float64}};
+                   bandwidth=default_prolate_bandwidth(intervals),
+                   ntaper=default_ntaper(intervals, bandwidth))
+  Prolate1D(bandwidth, intervals, ntaper)
+end
+
+
+slepkernel(xmy::Float64, bw::Float64) = sinc(2*bw*xmy)
 
 function linsys_rhs(p::Prolate1D, wgrid::AbstractVector{Float64})
   # Step 1: compute the prolate on a coarse grid that just resolves the Nyquist
   # frequency using a dense eigendecomposition.
   (cnodes, cweights) = segment_glquadrule_nyquist(p.intervals, 2*p.bandwidth) 
-  cslep = prolate_fromrule(p.bandwidth, cnodes, cweights)
+  cslep = prolate_fromrule(p.bandwidth, p.ntaper, cnodes, cweights)
   # Step 2: interpolate that coarse prolate up to a sufficiently large fine grid
   # that you can resolve all the oscillations in wgrid.
   (nodes, weights) = segment_glquadrule_nyquist(p.intervals, maximum(abs, wgrid))
   slep  = prolate_interpolate(p, cnodes, cweights, cslep, nodes, weights)
   # Step 2: compute its CFT.
   nufftop = NUFFT3(nodes, collect(wgrid.*(2*pi)), false, 1e-15)
-  spectra = Vector{ComplexF64}(undef, length(wgrid))
+  spectra = Matrix{ComplexF64}(undef, length(wgrid), size(slep, 2))
   mul!(spectra, nufftop, complex(weights.*slep))
 end
 
@@ -195,18 +210,23 @@ function prolate_interpolate(p, coarse_nodes, coarse_weights,
                              coarse_values, fine_nodes, fine_weights)
   S = [slepkernel(x-y, p.bandwidth) for y in fine_nodes, x in coarse_nodes]
   s = S*(coarse_values.*coarse_weights)
-  s ./= sqrt(dot(fine_weights, abs2.(s)))
+  for sj in eachcol(s)
+    sj ./= sqrt(dot(fine_weights, abs2.(sj)))
+  end
+  s
 end
 
-function prolate_fromrule(w, nodes, weights)
+function prolate_fromrule(w, ntaper, nodes, weights)
   M    = [slepkernel(tj-tk, w) for tj in nodes, tk in nodes]
   Dw   = Diagonal(sqrt.(weights))
   A    = Symmetric(Dw*M*Dw)
   Ae   = eigen!(A)
-  slep = real(Ae.vectors[:,end])
+  slep = Ae.vectors[:,(end-ntaper+1):end]
   ldiv!(Dw, slep)
-  slep ./= sqrt(dot(weights, abs2.(slep)))
-  slep .*= sign(slep[findmax(abs, slep)[2]])
+  for sj in eachcol(slep)
+    sj ./= sqrt(dot(weights, abs2.(sj)))
+    sj .*= sign(slep[findmax(abs, sj)[2]])
+  end
   slep
 end
 
@@ -245,6 +265,7 @@ function prolate_minimal_m(p::Prolate2D)
   max(m1, m2)
 end
 
+# TODO (cg 2025/05/22 13:49): make this a multitaper like in 1D.
 function linsys_rhs(p::Prolate2D, wgrid::AbstractVector{SVector{2,Float64}})
   # Step 1: compute the prolate function on a quadrature grid that resolves the
   # bandwidth.
@@ -259,7 +280,7 @@ function linsys_rhs(p::Prolate2D, wgrid::AbstractVector{SVector{2,Float64}})
   # Step 3: compute their CFT.
   nufftop = NUFFT3(nodes, collect(wgrid.*(2*pi)), false, 1e-15)
   spectra = Vector{ComplexF64}(undef, length(wgrid))
-  mul!(spectra, nufftop, complex(weights.*slep))
+  hcat(mul!(spectra, nufftop, complex(weights.*slep)))
 end
 
 function default_Ω(pts::Vector{SVector{2,Float64}}, p::Prolate2D)
@@ -285,8 +306,8 @@ TensorProduct2DWindow(s1, s2) = TensorProduct2DWindow(s1, s2, false)
 function linsys_rhs(sp::TensorProduct2DWindow, fgrid)
   unique_f1 = sort(unique(getindex.(fgrid, 1)))
   unique_f2 = sort(unique(getindex.(fgrid, 2)))
-  w1_vals   = Dict(zip(unique_f1, linsys_rhs(sp.s1, unique_f1)))
-  w2_vals   = Dict(zip(unique_f2, linsys_rhs(sp.s2, unique_f2)))
+  w1_vals   = Dict(zip(unique_f1, linsys_rhs(sp.s1, unique_f1)[:,end]))
+  w2_vals   = Dict(zip(unique_f2, linsys_rhs(sp.s2, unique_f2)[:,end]))
   out       = [w1_vals[fj[1]]*w2_vals[fj[2]] for fj in fgrid]
   if sp.zero_offlobe
     bw = (bandwidth(sp.s1), bandwidth(sp.s2))
@@ -295,7 +316,7 @@ function linsys_rhs(sp::TensorProduct2DWindow, fgrid)
       any(k->abs(fj[k]) > bw[k], 1:2) && (out[j] = zero(ComplexF64))
     end
   end
-  out
+  hcat(out)
 end
 
 # TODO (cg 2025/04/26 13:44): figure out a better default Ω here that is safe

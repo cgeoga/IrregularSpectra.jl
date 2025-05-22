@@ -122,15 +122,19 @@ function solve_linsys(pts, win, Ω, solver::KrylovSolver; verbose=false)
   (_ldiv, pre)   = krylov_preconditioner!(pts_sa, Ω, solver; verbose=verbose)
   F              = NUFFT3(pts_sa, collect(wgrid_sa.*(2*pi)), false, 1e-15, D)
   vrb            = verbose ? 10 : 0
-  wts = lsmr(F, D*rhs, N=pre, verbose=vrb, etol=0.0, axtol=0.0, atol=1e-11, 
-             btol=0.0, rtol=1e-10, conlim=Inf, ldiv=_ldiv, itmax=solver.maxit)[1]
-  l2norm = let tmp = Vector{ComplexF64}(undef, length(rhs))
-    _F = NUFFT3(pts_sa, collect(wgrid_sa.*(2*pi)), false, 1e-15)
-    mul!(tmp, _F, wts)
-    sqrt(dot(glwts, abs2.(tmp)))
+  wts = map(eachcol(rhs)) do rhsj
+    lsmr(F, D*rhsj, N=pre, verbose=vrb, etol=0.0, axtol=0.0, atol=1e-11, 
+         btol=0.0, rtol=1e-10, conlim=Inf, ldiv=_ldiv, itmax=solver.maxit)[1]
   end
-  wts ./= l2norm
-  wts
+  for wtsj in wts
+    l2norm = let tmp = Vector{ComplexF64}(undef, size(rhs, 1))
+      _F = NUFFT3(pts_sa, collect(wgrid_sa.*(2*pi)), false, 1e-15)
+      mul!(tmp, _F, wtsj)
+      sqrt(dot(glwts, abs2.(tmp)))
+    end
+    wtsj ./= l2norm
+  end
+  reduce(hcat, wts)
 end
 
 function default_solver(pts; perturbation=1e-10)
