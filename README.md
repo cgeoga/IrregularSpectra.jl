@@ -147,7 +147,7 @@ result in the format required for the `Prolated1D` constructor:
   using IrregularSpectra
   pts    = sort(vcat(rand(1000).*2.0 .- 1.0, rand(2000).*4.0 .+ 8.0))
   ivs    = gappy_intervals(pts)
-  window = Prolate1D(5.0, ivs) # Prolate with (half-)bandwidth of 5
+  window = Prolate1D(ivs) # Prolate with (half-)bandwidth of 5
   [...] # downstream tasks
 ```
 
