@@ -77,21 +77,21 @@ solved. Options are:
     not be faster than the `KrylovSolver` with a good preconditioner, and the 
     circumstance where you should reach for this one is probably rare.
 
-- `Ω = default_Ω(pts, g)`: the highest frequency that the weights will attempt
-  to resolve. This defaults to 80% of the Nyquist frequency for most windows, but
-  can be adaptively reduced if the norm of the weights is too high. See options below.
-  Note that in D dimensions for D > 1, `Ω` is/must be a D-tuple.
+  - `Ω = default_Ω(pts, g)`: the highest frequency that the weights will attempt
+    to resolve. This defaults to 80% of the Nyquist frequency for most windows, but
+    can be adaptively reduced if the norm of the weights is too high. See options
+    below.  Note that in D dimensions for D > 1, `Ω` is/must be a D-tuple.
 
-- `max_wt_norm = Inf`: the maximum permissible norm of the weight vector. This
-  norm has a big impact on the size of the aliasing bias, so it can sometimes be
-  advantageous to reduce `Ω` in exchange for a smaller norm. If this is set to a
-  finite value and the computed weights exceed it, then `Ω` is reduced as `Ω .*=
-  reduction_factor` and the weights are recomputed.
+  - `max_wt_norm = Inf`: the maximum permissible norm of the weight vector. This
+    norm has a big impact on the size of the aliasing bias, so it can sometimes be
+    advantageous to reduce `Ω` in exchange for a smaller norm. If this is set to a
+    finite value and the computed weights exceed it, then `Ω` is reduced as `Ω .*=
+    reduction_factor` and the weights are recomputed.
 
-- `reduction_factor = 0.9`: this quantity determines how aggressively we shrink
-  `Ω` in the case when the computed weights exceed `max_wt_norm`. Making it larger
-  may save you on the cost of recomputing weights, but it may mean your ultimate
-  `Ω` is lower than it could have been.
+  - `reduction_factor = 0.9`: this quantity determines how aggressively we shrink
+    `Ω` in the case when the computed weights exceed `max_wt_norm`. Making it larger
+    may save you on the cost of recomputing weights, but it may mean your ultimate
+    `Ω` is lower than it could have been.
 
 - `verbose = true`: whether or not to print output.
 """

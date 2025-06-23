@@ -5,9 +5,13 @@
 # k(pt1::SVector{D,Float64}, pt2::SVector{D,Float64}) -> F64
 # fouriertransform(k, freqs::Vector{SVector{D,Float64}}) -> F64
 # gen_kernel(ks::KrylovSolver{P,K}, pts::Vector{SVector{D,Float64}}, Ω) where{P} -> k.
+# 
+# If you want to use the SketchSolver, then also implement:
+#
 # gen_kernel(ks::SketchSolver{K}, pts::Vector{SVector{D,Float64}}, Ω) where{P} -> k.
 #
-# That last method is because the actual spec of KrylovSolver doesn't do any
+#
+# The function gen_kernel is because the actual spec of KrylovSolver doesn't do any
 # actual computing, and it doesn't contain enough information to fully specify
 # the kernel (in particular, the dimension of the process). So what gets stored
 # in there is actually the _type_ K, and then given full information deeper in

@@ -13,7 +13,7 @@ function is_single_segment(seg1, seg2, candidate_dt, gaptol)
   (mu1, sig1) = mean_and_std(ds1)
   (mu2, sig2) = mean_and_std(ds2)
   cmp         = (mu1 < mu2) ? Base.:< : Base.:>
-  ztestcheck  = cmp(mu1 + 3*sig1, mu2 - 3*sig2)
+  ztestcheck  = min(length(seg1), length(seg2)) <= 32 ? true : cmp(mu1 + 3*sig1, mu2 - 3*sig2)
   gapcheck && maxcheck && ztestcheck
 end
 

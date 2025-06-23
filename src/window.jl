@@ -204,7 +204,7 @@ function linsys_rhs(p::Prolate1D, wgrid::AbstractVector{Float64})
 end
 
 # TODO (cg 2025/05/06 17:13): could bring in BandlimitedOperators.jl as a dep to
-# use a fast sinc to speed this up. But it may not be faster in most cases
+# use a fast sinc/jinc to speed this up. But it may not be faster in most cases
 # because of how good the dgemv prefactor is.
 function prolate_interpolate(p, coarse_nodes, coarse_weights, 
                              coarse_values, fine_nodes, fine_weights)
@@ -216,6 +216,9 @@ function prolate_interpolate(p, coarse_nodes, coarse_weights,
   s
 end
 
+# TODO (cg 2025/06/18 14:20): this wasn't designed to run for large rules. But I
+# probably need one that does run for larger n. Maybe even a simple branch here
+# based on matrix size would be sufficient?
 function prolate_fromrule(w, ntaper, nodes, weights)
   M    = [slepkernel(tj-tk, w) for tj in nodes, tk in nodes]
   Dw   = Diagonal(sqrt.(weights))
@@ -271,7 +274,7 @@ function linsys_rhs(p::Prolate2D, wgrid::AbstractVector{SVector{2,Float64}})
   # bandwidth.
   corder = Int(ceil(max(32, prolate_minimal_m(p))))
   (cnodes, cweights) = glquadrule((corder, corder), p.a, p.b)
-  cslep = prolate_fromrule(p.bandwidth, cnodes, cweights)
+  cslep = prolate_fromrule(p.bandwidth, 1, cnodes, cweights)
   # Step 2: obtain the prolate on a finer grid that can resolve the actual
   # oscillations of wgrid.
   Ωl1  = 4*Int(ceil(maximum(x->norm(x,1), wgrid)))
@@ -288,6 +291,58 @@ function default_Ω(pts::Vector{SVector{2,Float64}}, p::Prolate2D)
   Ω2 = default_Ω(getindex.(pts, 2), Kaiser(p.bandwidth, a=p.a[2], b=p.b[2]))
   Ω  = sqrt(min(Ω1, Ω2))/2
   (Ω, Ω)
+end
+
+#
+# QuadratureRuleProlate: a prolate computed directly from a quadrature rule,
+# which is assumed to be of sufficient order to resolve the highest
+# oscillations. This is a _risky_ internal object for now.
+#
+struct QuadratureRuleProlate{D}
+  bandwidth::Float64 # this is a _radius_.
+  coarse_nodes::Vector{SVector{D,Float64}}
+  coarse_weights::Vector{Float64}
+  fine_nodes::Vector{SVector{D,Float64}}
+  fine_weights::Vector{Float64}
+end
+
+function prolate_minimal_m(p::QuadratureRuleProlate)
+  (a1, b1) = extrema(x->x[1], p.nodes)
+  m = 2*abs(b1 - a1)*4*p.bandwidth
+  if D == 2
+    (a2, b2) = extrema(x->x[2], p.nodes)
+    m2 = 2*abs(b2 - a2)*4*p.bandwidth
+    m = max(m, m2)
+  end
+  m
+end
+
+function linsys_rhs(p::QuadratureRuleProlate{2}, 
+                    wgrid::AbstractVector{SVector{2,Float64}})
+  # Step 1: compute the prolate function on a quadrature grid that resolves the
+  # bandwidth.
+  cslep = prolate_fromrule(p.bandwidth, 1, p.coarse_nodes, p.coarse_weights)
+  # Step 2: obtain the prolate on a finer grid that can resolve the actual
+  # oscillations of wgrid.
+  slep = prolate_interpolate(p, p.coarse_nodes, p.coarse_weights, 
+                             cslep, p.fine_nodes, p.fine_weights)
+  # Step 3: compute their CFT.
+  nufftop = NUFFT3(p.fine_nodes, collect(wgrid.*(2*pi)), false, 1e-15)
+  spectra = Vector{ComplexF64}(undef, length(wgrid))
+  hcat(mul!(spectra, nufftop, complex(p.fine_weights.*slep)))
+end
+
+function _default_Ω_quadprolate(n, a1, b1, a2, b2)
+  Ω1 = 0.8*n/((4*b1 - a1))
+  Ω2 = 0.8*n/((4*b2 - a2))
+  Ω  = sqrt(min(Ω1, Ω2))/2
+  (Ω, Ω)
+end
+
+function default_Ω(pts::Vector{SVector{2,Float64}}, p::QuadratureRuleProlate{2})
+  (a1, b1) = extrema(x->x[1], pts)
+  (a2, b2) = extrema(x->x[2], pts)
+  _default_Ω_quadprolate(length(pts), a1, b1, a2, b2)
 end
 
 

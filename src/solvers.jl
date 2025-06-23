@@ -138,23 +138,19 @@ function solve_linsys(pts, win, Ω, solver::KrylovSolver; verbose=false)
 end
 
 function default_solver(pts; perturbation=1e-10)
-  if length(pts) < 2000
-    return DenseSolver()
-  else
-    if length(pts) > 5_000
-      @warn """For large datasets, the default solver (Krylov with a dense Cholesky preconditioner)
-      can have a long runtime. Consider ]add-ing the weakdep HMatrices and using the following
-      solver instead:
+  if length(pts) > 5_000
+    @warn """For large datasets, the default solver (Krylov with a dense Cholesky preconditioner)
+    can have a long runtime. Consider ]add-ing the weakdep HMatrices and using the following
+    solver instead:
 
-      ```
-        using HMatrices
-        solver = KrylovSolver(HMatrixPreconditioner(1e-8, 1e-8)) 
-        estimate_sdf([...], solver=solver, [...])
-      ```
+    ```
+      using HMatrices
+      solver = KrylovSolver(HMatrixPreconditioner(1e-8, 1e-8)) 
+      estimate_sdf([...], solver=solver, [...])
+    ```
 
-      """
-    end
-    return KrylovSolver(CholeskyPreconditioner(); perturbation=perturbation)
+    """
   end
+  KrylovSolver(CholeskyPreconditioner(); perturbation=perturbation)
 end
 
