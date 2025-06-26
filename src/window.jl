@@ -198,14 +198,12 @@ function linsys_rhs(p::Prolate1D, wgrid::AbstractVector{Float64})
   (nodes, weights) = segment_glquadrule_nyquist(p.intervals, maximum(abs, wgrid))
   slep  = prolate_interpolate(p, cnodes, cweights, cslep, nodes, weights)
   # Step 2: compute its CFT.
-  nufftop = NUFFT3(nodes, collect(wgrid.*(2*pi)), false, 1e-15)
+  nufftop = NUFFT3(collect(wgrid.*(2*pi)), nodes, -1)
   spectra = Matrix{ComplexF64}(undef, length(wgrid), size(slep, 2))
   mul!(spectra, nufftop, complex(weights.*slep))
 end
 
-# TODO (cg 2025/05/06 17:13): could bring in BandlimitedOperators.jl as a dep to
-# use a fast sinc/jinc to speed this up. But it may not be faster in most cases
-# because of how good the dgemv prefactor is.
+# TODO (cg 2025/05/06 17:13): use a fast sinc/jinc to speed this up. 
 function prolate_interpolate(p, coarse_nodes, coarse_weights, 
                              coarse_values, fine_nodes, fine_weights)
   S = [slepkernel(x-y, p.bandwidth) for y in fine_nodes, x in coarse_nodes]
@@ -281,7 +279,7 @@ function linsys_rhs(p::Prolate2D, wgrid::AbstractVector{SVector{2,Float64}})
   (nodes, weights) = glquadrule((Ωl1, Ωl1), p.a, p.b)
   slep = prolate_interpolate(p, cnodes, cweights, cslep, nodes, weights)
   # Step 3: compute their CFT.
-  nufftop = NUFFT3(nodes, collect(wgrid.*(2*pi)), false, 1e-15)
+  nufftop = NUFFT3(collect(wgrid.*(2*pi)), nodes, -1)
   spectra = Vector{ComplexF64}(undef, length(wgrid))
   hcat(mul!(spectra, nufftop, complex(weights.*slep)))
 end
@@ -327,7 +325,7 @@ function linsys_rhs(p::QuadratureRuleProlate{2},
   slep = prolate_interpolate(p, p.coarse_nodes, p.coarse_weights, 
                              cslep, p.fine_nodes, p.fine_weights)
   # Step 3: compute their CFT.
-  nufftop = NUFFT3(p.fine_nodes, collect(wgrid.*(2*pi)), false, 1e-15)
+  nufftop = NUFFT3(collect(wgrid.*(2*pi)), p.fine_nodes, -1)
   spectra = Vector{ComplexF64}(undef, length(wgrid))
   hcat(mul!(spectra, nufftop, complex(p.fine_weights.*slep)))
 end

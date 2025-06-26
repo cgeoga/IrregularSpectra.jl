@@ -70,13 +70,6 @@ solved. Options are:
     Fourier matrix.  This will almost never be the fastest option, but we offer it
     for those who are exploring or debugging.
 
-  - `SketchSolver()`: this is an extension that requires `LowRankApprox.jl`. In
-    the setting where `Ω` is small or fixed and you are going to crank `n` up,
-    the Fourier matrix has a bounded rank and using the NUFFT and sketching
-    methods one can obtain weights rapidly with a partial QR. This may or may
-    not be faster than the `KrylovSolver` with a good preconditioner, and the 
-    circumstance where you should reach for this one is probably rare.
-
   - `Ω = default_Ω(pts, g)`: the highest frequency that the weights will attempt
     to resolve. This defaults to 80% of the Nyquist frequency for most windows, but
     can be adaptively reduced if the norm of the weights is too high. See options
@@ -138,7 +131,7 @@ function estimate_sdf(pts, data, g; Ω=default_Ω(pts, g), wts=nothing,
   if isnothing(wts)
     (Ω, wts) = window_quadrature_weights(pts, g; Ω=Ω, kwargs...)
   end
-  fs  = NUFFT3(pts, collect(frequencies.*(2*pi)), true, 1e-15)
+  fs  = NUFFT3(collect(frequencies.*(2*pi)), pts, -1)
   tmp = zeros(ComplexF64, length(frequencies), size(data, 2))
   est = mean(eachcol(wts)) do wtsj
     mul!(tmp, fs, complex(Diagonal(wtsj)*data))

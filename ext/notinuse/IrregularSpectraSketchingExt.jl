@@ -7,11 +7,16 @@ module IrregularSpectraSketchingExt
 
   using IrregularSpectra: gen_wgrid, glquadrule, fouriertransform, linsys_rhs, NUFFT3, IdentityKernel
 
+  # TODO (cg 2025/06/25 14:03): fix this in BandlimitedOperators.jl
+  function LinearAlgebra.ishermitian(fs::IrregularSpectra.BandlimitedOperators.NUFFT3)
+    false
+  end
+
   function IrregularSpectra.solve_linsys(pts, win, Ω, solver::SketchSolver{IdentityKernel}; 
                                          verbose=false)
     wgrid = gen_wgrid(pts, Ω) 
     b     = linsys_rhs(win, wgrid)
-    F     = NUFFT3(pts, collect(wgrid.*(2*pi)), false, 1e-15)
+    F     = IrregularSpectra.BandlimitedOperators.NUFFT3(collect(wgrid.*(2*pi)), pts, -1)
     Fo    = LinearOperator(F)
     Fqr   = pqrfact(Fo; rtol=solver.sketchtol)
     verbose && @printf "Numerical rank: %i\n" size(Fqr.Q, 2)

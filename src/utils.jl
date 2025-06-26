@@ -1,4 +1,46 @@
 
+# A dense NUDFT matrix. 
+function nudftmatrix(s1, s2, sgn; T=Float64)
+  sgn in (-1.0, 1.0) || throw(error("sign should be -1.0 or 1.0! You provided $sgn."))
+  [cispi(2*sgn*T(dot(sj, sk))) for sj in s1, sk in s2]
+end
+
+# v ↦ D*(F*v)
+struct PreNUFFT3
+  F::NUFFT3
+  D::Diagonal{Float64, Vector{Float64}}
+  adj_buf::Vector{ComplexF64}
+end
+
+Base.size(pnf::PreNUFFT3)    = size(pnf.F)
+Base.size(pnf::PreNUFFT3, j) = size(pnf.F, j)
+Base.eltype(pnf::PreNUFFT3)  = ComplexF64
+LinearAlgebra.adjoint(pnf::PreNUFFT3) = Adjoint{ComplexF64, PreNUFFT3}(pnf)
+
+function LinearAlgebra.mul!(buf::Vector{ComplexF64}, pnf::PreNUFFT3, 
+                            v::Vector{ComplexF64})
+  mul!(buf, pnf.F, v)
+  for j in eachindex(buf)
+    buf[j] *= pnf.D[j,j]
+  end
+  buf
+end
+
+# TODO (cg 2025/06/25 13:58): this allocates, b
+function LinearAlgebra.mul!(buf::Vector{ComplexF64}, 
+                            apnf::Adjoint{ComplexF64, PreNUFFT3}, 
+                            v::Vector{ComplexF64})
+  mul!(apnf.parent.adj_buf, apnf.parent.D, v)
+  mul!(buf, apnf.parent.F', apnf.parent.adj_buf)
+end
+
+function PreNUFFT3(s1::Vector{SVector{S,Float64}}, s2::Vector{SVector{S,Float64}},
+                   sgn::Int, D) where{S}
+  F    = NUFFT3(s1, s2, sgn)
+  abuf = Vector{ComplexF64}(undef, length(s1))
+  PreNUFFT3(F, D, abuf)
+end
+
 max_col_norm(M) = maximum(norm, eachcol(M))
 
 function irtrapweights(pts)

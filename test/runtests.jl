@@ -4,12 +4,6 @@ using LowRankApprox, HMatrices # extensions
 using IrregularSpectra.FINUFFT
 using IrregularSpectra.StaticArrays
 
-@testset "NUFFT" begin
-  let scope_dummy = 0
-    include("./tests/nufft.jl")
-  end
-end
-
 @testset "recovery" begin
   let scope_dummy = 0
     include("./tests/recovery.jl")
