@@ -237,7 +237,7 @@ end
 function _fast_prolate_fromrule end
 
 function prolate_fromrule(w, nodes, weights; concentration_tol=1e-6)
-  if length(nodes) > 3_000 && length(methods(_fast_prolate_fromrule)) > 0
+  out = if length(nodes) > 3_000 && length(methods(_fast_prolate_fromrule)) > 0
     @info "Using `ArnoldiMethod.jl` to accelerate prolate computation..." maxlog=1
     _fast_prolate_fromrule(w, nodes, weights; concentration_tol=concentration_tol)
   else
@@ -246,8 +246,9 @@ function prolate_fromrule(w, nodes, weights; concentration_tol=1e-6)
     end
     _dense_prolate_fromrule(w, nodes, weights; concentration_tol=concentration_tol)
   end
+  @info "Obtained $(size(out, 2)) well-concentrated prolates for this domain and bandwidth $(w)."
+  out
 end
-
 
 function prolate_minimal_m(p::Prolate1D)
   minimum(p.intervals) do (aj, bj)
