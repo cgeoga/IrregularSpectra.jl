@@ -18,6 +18,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [weakdeps]
+ArnoldiMethod = "ec485272-7323-5ecc-a04f-4719b315124d"
 HMatrices = "8646bddf-ab1c-4fa7-9c51-ba187d647618"
 NearestNeighbors = "b8a86587-4115-5ab1-83bc-aa920d37bbce"
 Vecchia = "8d73829f-f4b0-474a-9580-cecc8e084068"
@@ -26,6 +27,7 @@ Vecchia = "8d73829f-f4b0-474a-9580-cecc8e084068"
 IrregularSpectraHMatricesExt = "HMatrices"
 IrregularSpectraNearestNeighborsExt = "NearestNeighbors"
 IrregularSpectraVecchiaExt = "Vecchia"
+IrregularSpectraArnoldiMethodExt = "ArnoldiMethod"
 
 [compat]
 BandlimitedOperators = "0.1.4"

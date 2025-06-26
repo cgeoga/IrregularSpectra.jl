@@ -54,17 +54,22 @@ solved. Options are:
 
   - `KrylovSolver(::KrylovPreconditioner, pre_kernel::Type{K}, perturbation::Float64)`: 
     the default which uses `Krylov.lsmr` to compute the weights in an entirely
-    matrix-free way. The `::KrylovPreconditioner` object is crucial for this to be accurate. 
-    For small data sizes (maybe n ~ 5k or lower), the default `CholeskyPreconditioner()` 
-    is your best option. But for larger data sizes, considering `]add`-ing
-    `HMatrices.jl` and using the `HMatrixPreconditioner(atol, lu_atol)`, which
-    will scale _much_ better. The second argument, `pre_kernel`, is a _type_ that
-    that is an internal detail in assembling the preconditioned linear system. 
-    In general, we suggest using `SincKernel` in 1D, and `KaiserKernel` in 2+D. Finally,
-    `perturbation` is another interal detail in the preconditioned linear system.
-    A higher value will make certain preconditioners more stable, but slow down convergence.
-    We suggest a default choice of `1e-8`. See the example files for a demo of using
-    a custom `KrylovSolver`.
+    matrix-free way. The `::KrylovPreconditioner` object is crucial for this to
+    be accurate.  For small data sizes (maybe n ~ 5k or lower), the default
+    `CholeskyPreconditioner()` is your best option. But for larger data sizes,
+    considering `]add`-ing `HMatrices.jl` and using the
+    `HMatrixPreconditioner(atol, lu_atol)`, which will scale _much_ better. If
+    your points are on a gappy regular grid, consider using
+    `NoPreconditioner()`, as the least squares system will be sufficiently
+    favorably conditioned that you can get away with no preconditioner at all.
+
+    The second argument, `pre_kernel`, is a _type_ that that is an internal
+    detail in assembling the preconditioned linear system.  In general, we
+    suggest using `SincKernel` in 1D, and `KaiserKernel` in 2+D. Finally,
+    `perturbation` is another interal detail in the preconditioned linear
+    system.  A higher value will make certain preconditioners more stable, but
+    slow down convergence.  We suggest a default choice of `1e-8`. See the
+    example files for a demo of using a custom `KrylovSolver`.
 
   - `DenseSolver()`: uses a simple `qr(F, ColumnNorm())` on the nonuniform
     Fourier matrix.  This will almost never be the fastest option, but we offer it

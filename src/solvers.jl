@@ -66,6 +66,7 @@ end
 abstract type KrylovPreconditioner end
 
 struct NoPreconditioner <: KrylovPreconditioner end
+default_perturb(pre::NoPreconditioner)  = 0.0
                       
 struct HMatrixPreconditioner <: KrylovPreconditioner
   tol::Float64  # generic suggestion: 1e-8
@@ -165,4 +166,7 @@ function default_solver(pts; perturbation=1e-10)
   end
   KrylovSolver(CholeskyPreconditioner(); perturbation=perturbation)
 end
+
+# Method added in an extension.
+function gridded_nyquist_gpss end
 
