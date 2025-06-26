@@ -138,7 +138,7 @@ linsys_rhs(sw::Sine, fgrid) = hcat(fouriertransform.(Ref(sw), fgrid))
 #
 
 """
-`Prolate1D(bandwidth::Float64, intervals::Vector{NTuple{2,Float64}}, ntaper::Int64)`
+`Prolate1D(bandwidth::Float64, intervals::Vector{NTuple{2,Float64}})`
 
 A (generalized) prolate function with support on `intervals` and half-bandwidth
 `bandwidth`. Unlike a closed-form window like the Kaiser, this function and its
@@ -149,18 +149,14 @@ not implemented.
 
 `Prolate1D` has the construction method
 
-`Prolate1D(intervals; 
-           bandwidth=default_bandwidth(intervals),
-           ntaper=default_ntaper(intervals, bandwidth))`
+`Prolate1D(intervals; bandwidth=default_bandwidth(intervals))`
 
-which automatically selects the bandwidth and a number of tapers (potentially
-greater than 1). When `ntapers>1`, the estimator you will obtain is a multitaper
-estimator.
+which automatically selects the bandwidth. The number of tapers is selected
+automatically based on being sufficiently concentrated.
 """
 struct Prolate1D <: ImplicitWindow
   bandwidth::Float64
   intervals::Vector{NTuple{2,Float64}}
-  ntaper::Int64
 end
 
 bandwidth(p::Prolate1D) = p.bandwidth
@@ -172,17 +168,9 @@ function default_prolate_bandwidth(intervals::Vector{NTuple{2,Float64}})
   end
 end
 
-function default_ntaper(intervals, bandwidth)
-  minspacewidth = minimum(intervals) do ivj
-    ivj[2] - ivj[1]
-  end
-  max(1, Int(floor(bandwidth*(minspacewidth)))-2)
-end
-
 function Prolate1D(intervals::Vector{NTuple{2,Float64}};
-                   bandwidth=default_prolate_bandwidth(intervals),
-                   ntaper=default_ntaper(intervals, bandwidth))
-  Prolate1D(bandwidth, intervals, ntaper)
+                   bandwidth=default_prolate_bandwidth(intervals))
+  Prolate1D(bandwidth, intervals)
 end
 
 
@@ -192,21 +180,36 @@ function linsys_rhs(p::Prolate1D, wgrid::AbstractVector{Float64})
   # Step 1: compute the prolate on a coarse grid that just resolves the Nyquist
   # frequency using a dense eigendecomposition.
   (cnodes, cweights) = segment_glquadrule_nyquist(p.intervals, 2*p.bandwidth) 
-  cslep = prolate_fromrule(p.bandwidth, p.ntaper, cnodes, cweights)
+  cslep = prolate_fromrule(p.bandwidth, cnodes, cweights)
   # Step 2: interpolate that coarse prolate up to a sufficiently large fine grid
   # that you can resolve all the oscillations in wgrid.
   (nodes, weights) = segment_glquadrule_nyquist(p.intervals, maximum(abs, wgrid))
-  slep  = prolate_interpolate(p, cnodes, cweights, cslep, nodes, weights)
+  slep  = prolate_interpolate(p.bandwidth, cnodes, cweights, cslep, nodes, weights)
   # Step 2: compute its CFT.
   nufftop = NUFFT3(collect(wgrid.*(2*pi)), nodes, -1)
   spectra = Matrix{ComplexF64}(undef, length(wgrid), size(slep, 2))
   mul!(spectra, nufftop, complex(weights.*slep))
 end
 
-# TODO (cg 2025/05/06 17:13): use a fast sinc/jinc to speed this up. 
-function prolate_interpolate(p, coarse_nodes, coarse_weights, 
+# This is now just a fallback to use for debugging.
+function slepian_operator(x1v, x2v, bandwidth)
+  [slepkernel(x-y, bandwidth) for y in x1v, x in x2v]
+end
+
+function fast_slepian_operator(x1v::Vector{Float64}, x2v::Vector{Float64}, 
+                               bandwidth)
+  FastBandlimited(x1v, x2v, ω->inv(2*bandwidth), bandwidth)
+end
+
+function fast_slepian_operator(x1v::Vector{SVector{2,Float64}}, 
+                               x2v::Vector{SVector{2,Float64}}, 
+                               bandwidth)
+  FastBandlimited(x1v, x2v, ω->inv(pi*bandwidth^2)/2, bandwidth; polar=true)
+end
+
+function prolate_interpolate(bandwidth, coarse_nodes, coarse_weights, 
                              coarse_values, fine_nodes, fine_weights)
-  S = [slepkernel(x-y, p.bandwidth) for y in fine_nodes, x in coarse_nodes]
+  S = fast_slepian_operator(fine_nodes, coarse_nodes, bandwidth)
   s = S*(coarse_values.*coarse_weights)
   for sj in eachcol(s)
     sj ./= sqrt(dot(fine_weights, abs2.(sj)))
@@ -214,22 +217,37 @@ function prolate_interpolate(p, coarse_nodes, coarse_weights,
   s
 end
 
-# TODO (cg 2025/06/18 14:20): this wasn't designed to run for large rules. But I
-# probably need one that does run for larger n. Maybe even a simple branch here
-# based on matrix size would be sufficient?
-function prolate_fromrule(w, ntaper, nodes, weights)
-  M    = [slepkernel(tj-tk, w) for tj in nodes, tk in nodes]
+function _dense_prolate_fromrule(w, nodes, weights; concentration_tol=1e-6)
+  M    = slepian_operator(nodes, nodes, w) 
   Dw   = Diagonal(sqrt.(weights))
   A    = Symmetric(Dw*M*Dw)
   Ae   = eigen!(A)
-  slep = Ae.vectors[:,(end-ntaper+1):end]
-  ldiv!(Dw, slep)
-  for sj in eachcol(slep)
+  rel_concs    = Ae.values
+  rel_concs  ./= Ae.values[end]
+  good_conc_ix = findfirst(>=(1-concentration_tol), rel_concs)
+  prolates = Ae.vectors[:,good_conc_ix:end]
+  ldiv!(Dw, prolates)
+  for sj in eachcol(prolates)
     sj ./= sqrt(dot(weights, abs2.(sj)))
-    sj .*= sign(slep[findmax(abs, sj)[2]])
   end
-  slep
+  prolates
 end
+
+# this method is defined in the ArnoldiMethod.jl ext.
+function _fast_prolate_fromrule end
+
+function prolate_fromrule(w, nodes, weights; concentration_tol=1e-6)
+  if length(nodes) > 3_000 && length(methods(_fast_prolate_fromrule)) > 0
+    @info "Using `ArnoldiMethod.jl` to accelerate prolate computation..." maxlog=1
+    _fast_prolate_fromrule(w, nodes, weights; concentration_tol=concentration_tol)
+  else
+    if length(nodes) > 3_000
+      @warn "You will be computing a dense eigendecomposition of size $(length(nodes)). If this is too large or runs too slowly, consider ]adding and `using` `ArnoldiMethod.jl`, which will load an extension for computing these prolates in quasilinear time." maxlog=1
+    end
+    _dense_prolate_fromrule(w, nodes, weights; concentration_tol=concentration_tol)
+  end
+end
+
 
 function prolate_minimal_m(p::Prolate1D)
   minimum(p.intervals) do (aj, bj)
@@ -277,7 +295,7 @@ function linsys_rhs(p::Prolate2D, wgrid::AbstractVector{SVector{2,Float64}})
   # oscillations of wgrid.
   Ωl1  = 4*Int(ceil(maximum(x->norm(x,1), wgrid)))
   (nodes, weights) = glquadrule((Ωl1, Ωl1), p.a, p.b)
-  slep = prolate_interpolate(p, cnodes, cweights, cslep, nodes, weights)
+  slep = prolate_interpolate(p.bandwidth, cnodes, cweights, cslep, nodes, weights)
   # Step 3: compute their CFT.
   nufftop = NUFFT3(collect(wgrid.*(2*pi)), nodes, -1)
   spectra = Vector{ComplexF64}(undef, length(wgrid))
@@ -322,7 +340,7 @@ function linsys_rhs(p::QuadratureRuleProlate{2},
   cslep = prolate_fromrule(p.bandwidth, 1, p.coarse_nodes, p.coarse_weights)
   # Step 2: obtain the prolate on a finer grid that can resolve the actual
   # oscillations of wgrid.
-  slep = prolate_interpolate(p, p.coarse_nodes, p.coarse_weights, 
+  slep = prolate_interpolate(p.bandwidth, p.coarse_nodes, p.coarse_weights, 
                              cslep, p.fine_nodes, p.fine_weights)
   # Step 3: compute their CFT.
   nufftop = NUFFT3(collect(wgrid.*(2*pi)), p.fine_nodes, -1)

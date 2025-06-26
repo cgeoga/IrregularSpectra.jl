@@ -5,7 +5,7 @@ module IrregularSpectraArnoldiMethodExt
   using IrregularSpectra.StaticArrays
   using IrregularSpectra.BandlimitedOperators
 
-  import IrregularSpectra: gridded_nyquist_gpss
+  import IrregularSpectra: gridded_nyquist_gpss, _fast_prolate_fromrule
 
   function gridded_nyquist_gpss(times::Vector{Float64}, bw; concentration_tol=1e-4)
     # Step 1: using a fast sinc transform and ArnoldiMethod.jl, compute the GPSS
@@ -14,7 +14,7 @@ module IrregularSpectraArnoldiMethodExt
     # by, like, eps() from each other. So asking an iterative method to separate
     # those from each other is not in the cards.
     fs  = FastBandlimited(times, times, ω->1.0, bw)
-    nev = 2*Int(ceil(bw*(times[end]-times[1])))
+    nev = max(100, 10*Int(ceil(bw*(times[end]-times[1])))) # it helps to resolve the vectors
     (res, status) = partialschur(fs; tol=1e-12, nev=nev)
     status.converged || throw(error("Partial Schur method failed to converge! Please simply try again, and if the error continues to happen reduce the bandwidth."))
     rel_concs    = real(res.eigenvalues)
@@ -54,7 +54,7 @@ module IrregularSpectraArnoldiMethodExt
   function gridded_nyquist_gpss(locations::Vector{SVector{2,Float64}}, bw;
                                 concentration_tol=1e-4)
     fs  = FastBandlimited(locations, locations, Ω->1.0, bw; polar=true)
-    nev = 2*Int(ceil(bw*spatial_area(locations)*bw))
+    nev = max(100, 10*Int(ceil(bw*spatial_area(locations)*bw)))
     (res, status) = partialschur(fs; tol=1e-12, nev=nev)
     status.converged || throw(error("Partial Schur method failed to converge! Please simply try again, and if the error continues to happen reduce the bandwidth."))
     rel_concs    = real(res.eigenvalues)
@@ -80,6 +80,52 @@ module IrregularSpectraArnoldiMethodExt
       view(gpss, :, j) ./= l2norm
     end
     gpss
+  end
+
+  struct ConjugatedHermOperator{B}
+    D::Diagonal{Float64, Vector{Float64}}
+    M::B
+  end
+
+  Base.size(co::ConjugatedHermOperator{B})    where{B} = size(co.D)
+  Base.size(co::ConjugatedHermOperator{B}, j) where{B} = size(co.D, j)
+  Base.eltype(co::ConjugatedHermOperator{B})  where{B} = Float64 # hard-coded for now
+
+  LinearAlgebra.issymmetric(co::ConjugatedHermOperator{B}) where{B} = true
+  LinearAlgebra.ishermitian(co::ConjugatedHermOperator{B}) where{B} = true
+  function LinearAlgebra.adjoint(co::ConjugatedHermOperator{B}) where{B}
+    Adjoint{Float64, ConjugatedHermOperator{B}}(co)
+  end
+
+  function LinearAlgebra.mul!(buf, co::ConjugatedHermOperator{B}, v) where{B}
+    mul!(buf, co.M, co.D*v)
+    D = co.D
+    for j in 1:size(D, 1)
+      view(buf, j, :) .*= D[j,j]
+    end
+    buf
+  end
+
+  function LinearAlgebra.mul!(buf, co::Adjoint{Float64, ConjugatedHermOperator{B}}, 
+                              v) where{B}
+    mul!(buf, co.parent, v)
+  end
+
+  function _fast_prolate_fromrule(w, nodes, weights; concentration_tol=1e-6)
+    _M = IrregularSpectra.fast_slepian_operator(nodes, nodes, w)
+    Dw = Diagonal(sqrt.(weights))
+    M  = ConjugatedHermOperator(Dw, _M)
+    (res, status) = partialschur(M; tol=1e-12, nev=100)
+    status.converged || throw(error("Partial Schur method failed to converge! Please simply try again, and if the error continues to happen reduce the bandwidth."))
+    rel_concs    = real(res.eigenvalues)
+    rel_concs  ./= rel_concs[1]
+    good_conc_ix = findlast(>=(1-concentration_tol), rel_concs)
+    prolates = res.Q[:,1:good_conc_ix]
+    ldiv!(Dw, prolates)
+    for sj in eachcol(prolates)
+      sj ./= sqrt(dot(weights, abs2.(sj))) 
+    end
+    prolates 
   end
 
 end
