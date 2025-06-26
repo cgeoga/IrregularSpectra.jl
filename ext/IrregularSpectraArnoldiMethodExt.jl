@@ -2,6 +2,7 @@
 module IrregularSpectraArnoldiMethodExt
 
   using LinearAlgebra, IrregularSpectra, ArnoldiMethod
+  using IrregularSpectra.StaticArrays
   using IrregularSpectra.BandlimitedOperators
 
   import IrregularSpectra: gridded_nyquist_gpss
@@ -12,8 +13,8 @@ module IrregularSpectraArnoldiMethodExt
     # soup of the well-concentrated vectors because those eigenvalues can differ
     # by, like, eps() from each other. So asking an iterative method to separate
     # those from each other is not in the cards.
-    fs  = FastBandlimited(times, times, ω->inv(2*bw), bw)
-    nev = Int(ceil(bw*(times[end]-times[1])))
+    fs  = FastBandlimited(times, times, ω->1.0, bw)
+    nev = 2*Int(ceil(bw*(times[end]-times[1])))
     (res, status) = partialschur(fs; tol=1e-12, nev=nev)
     status.converged || throw(error("Partial Schur method failed to converge! Please simply try again, and if the error continues to happen reduce the bandwidth."))
     rel_concs    = real(res.eigenvalues)
@@ -28,6 +29,49 @@ module IrregularSpectraArnoldiMethodExt
     Ω   = inv(minimum(abs, diff(times)))/2
     (wgrid, glwts) = IrregularSpectra.glquadrule(4*length(times), -Ω, Ω)
     F   = IrregularSpectra.NUFFT3(wgrid.*(2*pi), times, -1)
+    tmp = zeros(ComplexF64, length(wgrid))
+    for j in 1:size(gpss, 2)
+      wtsj = complex(gpss[:,j])
+      mul!(tmp, F, wtsj)
+      l2norm = sqrt(dot(glwts, abs2.(tmp)))
+      view(gpss, :, j) ./= l2norm
+    end
+    gpss
+  end
+
+  function spatial_area(locations::Vector{SVector{2,Float64}})
+    (x_q1, x_qn) = extrema(x->x[1], locations)
+    (y_q1, y_qn) = extrema(x->x[2], locations)
+    (x_qn - x_q1)*(y_qn - y_q1)
+  end
+
+  function get_nyquist_j(locations::Vector{SVector{2,Float64}}, j)
+    xj  = getindex.(locations, 1)
+    xjs = sort(unique(xj))
+    inv(xjs[2] - xjs[1])/2
+  end
+
+  function gridded_nyquist_gpss(locations::Vector{SVector{2,Float64}}, bw;
+                                concentration_tol=1e-4)
+    fs  = FastBandlimited(locations, locations, Ω->1.0, bw; polar=true)
+    nev = 2*Int(ceil(bw*spatial_area(locations)*bw))
+    (res, status) = partialschur(fs; tol=1e-12, nev=nev)
+    status.converged || throw(error("Partial Schur method failed to converge! Please simply try again, and if the error continues to happen reduce the bandwidth."))
+    rel_concs    = real(res.eigenvalues)
+    rel_concs  ./= rel_concs[1]
+    good_conc_ix = findlast(>=(1-concentration_tol), rel_concs)
+    gpss = res.Q[:,1:good_conc_ix]
+    # Step 2: L^2 normalize them. This is _not_ the exact normalization scheme
+    # suggested by Bronez, and at some point this code could be modified to
+    # offer that scheme as well. But this normalization and then flat weighting
+    # certainly is not wrong, and it fits into the existing code base much more
+    # easily.
+    Ω1 = get_nyquist_j(locations, 1)
+    Ω2 = get_nyquist_j(locations, 2)
+    Ω  = (Ω1, Ω2)
+    nq = 4*Int(ceil(sqrt(length(locations))))
+    (wgrid, glwts) = IrregularSpectra.glquadrule((nq, nq), .-Ω, Ω)
+    F   = IrregularSpectra.NUFFT3(wgrid.*(2*pi), locations, -1)
     tmp = zeros(ComplexF64, length(wgrid))
     for j in 1:size(gpss, 2)
       wtsj = complex(gpss[:,j])
