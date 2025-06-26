@@ -10,7 +10,7 @@ for pre in (CholeskyPreconditioner(), HMatrixPreconditioner(1e-10, 1e-10))
   wgrid = range(-Ω, Ω, length=2*length(pts))
   F     = IrregularSpectra.nudftmatrix(wgrid, pts, -1)
 
-  wts = window_quadrature_weights(pts, win, solver=KrylovSolver(pre), Ω=Ω)[2]
+  wts = window_quadrature_weights(pts, win, solver=KrylovSolver(pre), Ω=Ω)[2][:,end]
   rec = abs.(F*wts)
 
   should = abs.(IrregularSpectra.fouriertransform.(Ref(win), wgrid)) 

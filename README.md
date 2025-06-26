@@ -155,9 +155,9 @@ result in the format required for the `Prolated1D` constructor:
 
 If you pick a generous enough bandwidth that multiple prolate functions have
 good concentration, `IrregularSpectra.jl` will automatically provide you with a
-[multitaper estimator](https://en.wikipedia.org/wiki/Multitaper). By default, 
-for data observed on an interval with no large gaps, the default bandwidth is 
-chosen so that three well-concentrated tapers are available. 
+[multitaper estimator](https://en.wikipedia.org/wiki/Multitaper). A default
+bandwidth is selected, but you can also provide your own. The number of tapers
+is automatically selected by checking the concentration of each function.
 
 Please note that, unlike in the well-behaved gridded 1D case, estimating the SDF
 for processes observed at irregular locations and an SDF supported on the entire

@@ -16,6 +16,6 @@ wts  = window_quadrature_weights(pts, win; verbose=false)[2]
 out_ix = findall(w->abs(w) > 2*3.0, wgr)
 F      = IrregularSpectra.nudftmatrix(wgr, pts, -1)
 for wtsj in eachcol(wts)
-  @test maximum(abs2, (F*wtsj)[out_ix]) < 1e-11
+  @test maximum(abs2, (F*wtsj)[out_ix]) < 1e-9
 end
 

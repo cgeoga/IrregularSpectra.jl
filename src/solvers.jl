@@ -167,5 +167,16 @@ function default_solver(pts; perturbation=1e-10)
 end
 
 # Method added in an extension.
+"""
+`gridded_nyquist_gpss(pts::Vector{Float64}, bandwidth::Float64)`
+`gridded_nyquist_gpss(pts::Vector{SVector{2,Float64}}, bandwidth::Float64)`
+
+This function computes the well-concentrated GPSS functions of bandwidth
+`bandwidth` (which is interpreted as a _radius_ in 2D).
+
+**NOTE**: this function requires the extension for `ArnoldiMethod.jl`, so you
+must `]add ArnoldiMethod` and `using ArnoldiMethod` in your file for this
+function to have any methods.
+"""
 function gridded_nyquist_gpss end
 

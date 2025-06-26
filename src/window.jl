@@ -217,7 +217,7 @@ function prolate_interpolate(bandwidth, coarse_nodes, coarse_weights,
   s
 end
 
-function _dense_prolate_fromrule(w, nodes, weights; concentration_tol=1e-6)
+function _dense_prolate_fromrule(w, nodes, weights; concentration_tol=1e-8)
   M    = slepian_operator(nodes, nodes, w) 
   Dw   = Diagonal(sqrt.(weights))
   A    = Symmetric(Dw*M*Dw)
@@ -236,7 +236,7 @@ end
 # this method is defined in the ArnoldiMethod.jl ext.
 function _fast_prolate_fromrule end
 
-function prolate_fromrule(w, nodes, weights; concentration_tol=1e-6)
+function prolate_fromrule(w, nodes, weights; concentration_tol=1e-8)
   out = if length(nodes) > 3_000 && length(methods(_fast_prolate_fromrule)) > 0
     @info "Using `ArnoldiMethod.jl` to accelerate prolate computation..." maxlog=1
     _fast_prolate_fromrule(w, nodes, weights; concentration_tol=concentration_tol)
@@ -321,6 +321,26 @@ struct QuadratureRuleProlate{D}
   coarse_weights::Vector{Float64}
   fine_nodes::Vector{SVector{D,Float64}}
   fine_weights::Vector{Float64}
+end
+
+function QuadratureRuleProlate(bw::Float64, xgrid::AbstractVector{Float64}, 
+                               ygrid::AbstractVector{Float64},
+                               missing_values::Vector{SVector{2,Float64}})
+  (issorted(xgrid) && issorted(ygrid)) || throw(error("Please sort your x- and y-grid inputs."))
+  missing_sorted = sort(missing_values, by=t->t[1])
+  # Some stand-in Nyquist frequencies.
+  Ω = IrregularSpectra._default_Ω_quadprolate(length(xgrid)*length(ygrid), xgrid[1], 
+                                              xgrid[end], ygrid[1], ygrid[end])
+  # coarse rule, which just needs to resolve the support frequency of the
+  # prolate function (although we bump it up a bit because the concentration is
+  # not always fantastic).
+  coarse_m = (Int(ceil(bw*(xgrid[end] - xgrid[1]))*8),
+              Int(ceil(bw*(ygrid[end] - ygrid[1]))*8))
+  (coarse_nodes, coarse_weights) = gappy_rule(xgrid, ygrid, missing_sorted, coarse_m)
+  # fine rule, interpolating up to the Nyquist level to resolve the highest
+  # oscillations.
+  (fine_nodes, fine_weights) = gappy_rule(xgrid, ygrid, missing_sorted, Ω.*6)
+  QuadratureRuleProlate(bw, coarse_nodes, coarse_weights, fine_nodes, fine_weights)
 end
 
 function prolate_minimal_m(p::QuadratureRuleProlate)

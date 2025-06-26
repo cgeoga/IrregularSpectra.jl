@@ -135,6 +135,38 @@ end
 
 segment_glquadrule_nyquist(intervals, Ω) = segment_glquadrule(intervals, Ω*4, add=50)
 
+function y_slice_intervals(xval, ygrid, missing_sorted)
+  y    = Set(copy(ygrid))
+  gixs = searchsorted(missing_sorted, xval, by=t->t[1])
+  gaps = sort(unique(getindex.(missing_sorted[gixs], 2)))
+  foreach(v->delete!(y, v), gaps)
+  gappy_intervals(sort(collect(y)); minlen=0)
+end
+
+function gappy_rule(xgrid::AbstractVector{Float64}, 
+                    ygrid::AbstractVector{Float64},
+                    missing_sorted::Vector{SVector{2,Float64}}, 
+                    rule_density)
+  # First, let get a quadrature rule along the x-axis.
+  (nox, wtx) = IrregularSpectra.segment_glquadrule([extrema(xgrid)], rule_density[1])
+  # Now, for each nox[j], we'll find the nearest row of in xgrid, get the
+  # gappy interval decomposition of that marginal slice, and then obtain a
+  # quadrature rule on that gappy 1D grid. This can (and should!) get improved
+  # to handle more complex regions more thoughtfully. But for now, we'll just
+  # babysit the results a little and see how it goes.
+  row_rules = map(eachindex(nox, wtx)) do j
+    (noxj, wtxj) = (nox[j], wtx[j])
+    ix = searchsortedfirst(xgrid, noxj)
+    abs(xgrid[ix-1] - noxj) < abs(xgrid[ix] - noxj) && (ix -= 1)
+    ivs = y_slice_intervals(xgrid[ix], ygrid, missing_sorted)
+    (no, wt) = IrregularSpectra.segment_glquadrule(ivs, rule_density[2])
+    wt .*= wtxj
+    nodes_2d = [SA[noxj, nok] for nok in no]
+    (nodes_2d, wt)
+  end
+  (reduce(vcat, getindex.(row_rules, 1)), reduce(vcat, getindex.(row_rules, 2)))
+end
+
 function threaded_km_assembly(kernel::K, pts) where{K}
   out = Matrix{Float64}(undef, length(pts), length(pts))
   Threads.@threads for k in 1:length(pts)

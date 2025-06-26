@@ -1,6 +1,5 @@
 [deps]
 HMatrices = "8646bddf-ab1c-4fa7-9c51-ba187d647618"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-LowRankApprox = "898213cb-b102-5a47-900c-97e73b919f73"
 StableRNGs = "860ef19b-820b-49d6-a774-d7a799459cd3"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
