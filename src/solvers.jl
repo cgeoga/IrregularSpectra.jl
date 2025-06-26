@@ -75,8 +75,7 @@ end
 default_perturb(pre::HMatrixPreconditioner)  = 1e-6
 
 struct VecchiaPreconditioner <: KrylovPreconditioner
-  ncond::Int64 # generic suggestion: 50
-  nfsa::Int64  # generic suggestion: 30
+  ncond::Int64 # generic suggestion: 30
 end
 default_perturb(pre::VecchiaPreconditioner)  = 1e-3
 

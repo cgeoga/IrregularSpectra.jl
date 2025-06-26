@@ -16,9 +16,9 @@ module IrregularSpectraHMatricesExt
     #sk       = Hermitian(KernelMatrix(kernel, pts_sa, pts_sa)) # when HMatrices.jl#80 lands
     sk       = KernelMatrix(kernel, pts_sa, pts_sa)
     pre_time = @elapsed begin
-      H  = assemble_hmatrix(sk; rtol=solver.preconditioner.tol)
+      H  = assemble_hmatrix(sk; rtol=solver.preconditioner.tol, adm=WeakAdmissibilityStd())
       Hf = try
-        #cholesky(H) # when HMatrices.jl#80 lands
+        #cholesky(Hermitian(H)) # when HMatrices.jl#80 lands
         lu(H; rtol=solver.preconditioner.ftol)
       catch er
         @warn "Preconditioner factorization failed with error $er, falling back to identity matrix..."

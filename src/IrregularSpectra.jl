@@ -13,7 +13,7 @@ module IrregularSpectra
   export gappy_intervals
 
   include("solvers.jl")
-  export DenseSolver, KrylovSolver, NoPreconditioner, CholeskyPreconditioner, HMatrixPreconditioner, SparsePreconditioner
+  export DenseSolver, KrylovSolver, NoPreconditioner, CholeskyPreconditioner, VecchiaPreconditioner, HMatrixPreconditioner, SparsePreconditioner
 
   include("window.jl")
   export Kaiser, Sine, Prolate1D, default_prolate_bandwidth, Prolate2D, TensorProduct2DWindow

@@ -338,7 +338,7 @@ function linsys_rhs(p::QuadratureRuleProlate{2},
                     wgrid::AbstractVector{SVector{2,Float64}})
   # Step 1: compute the prolate function on a quadrature grid that resolves the
   # bandwidth.
-  cslep = prolate_fromrule(p.bandwidth, 1, p.coarse_nodes, p.coarse_weights)
+  cslep = prolate_fromrule(p.bandwidth, p.coarse_nodes, p.coarse_weights)
   # Step 2: obtain the prolate on a finer grid that can resolve the actual
   # oscillations of wgrid.
   slep = prolate_interpolate(p.bandwidth, p.coarse_nodes, p.coarse_weights, 

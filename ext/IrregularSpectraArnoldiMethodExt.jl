@@ -7,7 +7,7 @@ module IrregularSpectraArnoldiMethodExt
 
   import IrregularSpectra: gridded_nyquist_gpss, _fast_prolate_fromrule
 
-  function gridded_nyquist_gpss(times::Vector{Float64}, bw; concentration_tol=1e-4)
+  function gridded_nyquist_gpss(times::Vector{Float64}, bw; concentration_tol=1e-6)
     # Step 1: using a fast sinc transform and ArnoldiMethod.jl, compute the GPSS
     # vectors. Note that especially for wider bandwidths, you will be getting a
     # soup of the well-concentrated vectors because those eigenvalues can differ
@@ -52,9 +52,9 @@ module IrregularSpectraArnoldiMethodExt
   end
 
   function gridded_nyquist_gpss(locations::Vector{SVector{2,Float64}}, bw;
-                                concentration_tol=1e-4)
+                                concentration_tol=1e-6)
     fs  = FastBandlimited(locations, locations, Ω->1.0, bw; polar=true)
-    nev = max(100, 10*Int(ceil(bw*spatial_area(locations)*bw)))
+    nev = max(100, 10*Int(ceil(bw*spatial_area(locations))))
     (res, status) = partialschur(fs; tol=1e-12, nev=nev)
     status.converged || throw(error("Partial Schur method failed to converge! Please simply try again, and if the error continues to happen reduce the bandwidth."))
     rel_concs    = real(res.eigenvalues)

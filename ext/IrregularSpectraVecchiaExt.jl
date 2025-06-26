@@ -33,10 +33,9 @@ module IrregularSpectraVecchiaExt
       BLAS.set_num_threads(1)
     end
     pre_time = @elapsed begin
-      cfg = Vecchia.fsa_knnconfig(Float64.(eachindex(pts_sa)), pts_sa, 
-                                  solver.preconditioner.ncond, 
-                                  solver.preconditioner.nfsa, 
-                                  _kernel; randomize=false)
+      cfg = knnconfig(Float64.(eachindex(pts_sa)), pts_sa, 
+                      solver.preconditioner.ncond, 
+                      _kernel; randomize=false)
       p   = vec(Int64.(reduce(vcat, cfg.data)))
       permute!(pts_sa, p)
       Us  = sparse(Vecchia.rchol(cfg, Float64[]; use_tiles=true, issue_warning=false))
