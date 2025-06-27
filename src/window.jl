@@ -339,7 +339,7 @@ function QuadratureRuleProlate(bw::Float64, xgrid::AbstractVector{Float64},
   (coarse_nodes, coarse_weights) = gappy_rule(xgrid, ygrid, missing_sorted, coarse_m)
   # fine rule, interpolating up to the Nyquist level to resolve the highest
   # oscillations.
-  (fine_nodes, fine_weights) = gappy_rule(xgrid, ygrid, missing_sorted, Ω.*6)
+  (fine_nodes, fine_weights) = gappy_rule(xgrid, ygrid, missing_sorted, Ω.*8)
   QuadratureRuleProlate(bw, coarse_nodes, coarse_weights, fine_nodes, fine_weights)
 end
 

@@ -16,7 +16,7 @@ module IrregularSpectraHMatricesExt
     #sk       = Hermitian(KernelMatrix(kernel, pts_sa, pts_sa)) # when HMatrices.jl#80 lands
     sk       = KernelMatrix(kernel, pts_sa, pts_sa)
     pre_time = @elapsed begin
-      H  = assemble_hmatrix(sk; rtol=solver.preconditioner.tol, adm=WeakAdmissibilityStd())
+      H  = assemble_hmatrix(sk; rtol=solver.preconditioner.tol)
       Hf = try
         #cholesky(Hermitian(H)) # when HMatrices.jl#80 lands
         lu(H; rtol=solver.preconditioner.ftol)

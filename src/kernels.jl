@@ -33,7 +33,8 @@ function gen_kernel(ks::KrylovSolver{P,DefaultKernel},
                     pts::Vector{SVector{D,Float64}}, 
                     Ω) where{P,D}
   _k  = D == 1 ? SincKernel : GaussKernel
-  _ks = KrylovSolver(ks.preconditioner, _k, ks.perturbation, ks.maxit)
+  _ks = KrylovSolver(ks.preconditioner, _k, ks.perturbation, 
+                     ks.maxit, ks.atol, ks.rtol)
   gen_kernel(_ks, pts, Ω)
 end
 

@@ -61,6 +61,8 @@ struct KrylovSolver{P,K} <: LinearSystemSolver where{P,K}
   pre_kernel::Type{K}
   perturbation::Float64
   maxit::Int64
+  atol::Float64
+  rtol::Float64
 end
 
 abstract type KrylovPreconditioner end
@@ -88,8 +90,8 @@ end
 default_perturb(pre::SparsePreconditioner) = 1e-10
 
 function KrylovSolver(p; pre_kernel::Type{K}=DefaultKernel, maxit=500,
-                      perturbation=default_perturb(p)) where{K}
-  KrylovSolver(p, pre_kernel, perturbation, maxit)
+                      perturbation=default_perturb(p), atol=1e-11, rtol=1e-10) where{K}
+  KrylovSolver(p, pre_kernel, perturbation, maxit, atol, rtol)
 end
 
 function krylov_preconditioner!(pts_sa, Ω, solver::KrylovSolver{NoPreconditioner,K};
@@ -135,8 +137,8 @@ function solve_linsys(pts, win, Ω, solver::KrylovSolver; verbose=false)
   F              = PreNUFFT3(collect(wgrid_sa.*(2*pi)), pts_sa, -1, D)
   vrb            = verbose ? 10 : 0
   wts = map(eachcol(rhs)) do rhsj
-    lsmr(F, D*rhsj, N=pre, verbose=vrb, etol=0.0, axtol=0.0, atol=1e-11, 
-         btol=0.0, rtol=1e-10, conlim=Inf, ldiv=_ldiv, itmax=solver.maxit)[1]
+    lsmr(F, D*rhsj, N=pre, verbose=vrb, etol=0.0, axtol=0.0, atol=solver.atol, 
+         btol=0.0, rtol=solver.rtol, conlim=Inf, ldiv=_ldiv, itmax=solver.maxit)[1]
   end
   for wtsj in wts
     l2norm = let tmp = Vector{ComplexF64}(undef, size(rhs, 1))
