@@ -291,7 +291,7 @@ function linsys_rhs(p::Prolate2D, wgrid::AbstractVector{SVector{2,Float64}})
   # bandwidth.
   corder = Int(ceil(max(32, prolate_minimal_m(p))))
   (cnodes, cweights) = glquadrule((corder, corder), p.a, p.b)
-  cslep = prolate_fromrule(p.bandwidth, 1, cnodes, cweights)
+  cslep = prolate_fromrule(p.bandwidth, cnodes, cweights)
   # Step 2: obtain the prolate on a finer grid that can resolve the actual
   # oscillations of wgrid.
   Ωl1  = 4*Int(ceil(maximum(x->norm(x,1), wgrid)))
