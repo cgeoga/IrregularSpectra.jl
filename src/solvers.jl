@@ -54,6 +54,7 @@ SketchSolver(sketchtol::Float64) = SketchSolver(IdentityKernel, sketchtol, 1e-12
 # solve_linsys(pts, win, Ω, solver::KrylovSolver{HMatrixPreconditioner}; verbose)
 # solve_linsys(pts, win, Ω, solver::KrylovSolver{VecchiaPreconditioner}; verbose)
 # solve_linsys(pts, win, Ω, solver::KrylovSolver{SparsePreconditioner};  verbose)
+# solve_linsys(pts, win, Ω, solver::KrylovSolver{BandedPreconditioner};  verbose)
 #
 # are defined in an extension.
 struct KrylovSolver{P,K} <: LinearSystemSolver where{P,K}
@@ -88,6 +89,11 @@ struct SparsePreconditioner <: KrylovPreconditioner
   drop_tol::Float64
 end
 default_perturb(pre::SparsePreconditioner) = 1e-10
+
+struct BandedPreconditioner <: KrylovPreconditioner
+  bandwidth::Int64
+end
+default_perturb(pre::BandedPreconditioner) = 0.0
 
 function KrylovSolver(p; pre_kernel::Type{K}=DefaultKernel, maxit=500,
                       perturbation=default_perturb(p), atol=1e-11, rtol=1e-10) where{K}

@@ -1,7 +1,7 @@
 name = "IrregularSpectra"
 uuid = "44cbfef1-da7d-499c-871f-40d6f2b94496"
 authors = ["Chris Geoga <geoga@wisc.edu>", "Paul Beckman <paul.beckman@cims.nyu.edu>"]
-version = "0.6.1"
+version = "0.6.2"
 
 [deps]
 BandlimitedOperators = "c0e4beca-6dc6-4b2a-9565-ed1726c22a21"
@@ -19,15 +19,17 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [weakdeps]
 ArnoldiMethod = "ec485272-7323-5ecc-a04f-4719b315124d"
+BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
 HMatrices = "8646bddf-ab1c-4fa7-9c51-ba187d647618"
 NearestNeighbors = "b8a86587-4115-5ab1-83bc-aa920d37bbce"
 Vecchia = "8d73829f-f4b0-474a-9580-cecc8e084068"
 
 [extensions]
+IrregularSpectraArnoldiMethodExt = "ArnoldiMethod"
+IrregularSpectraBandedMatricesExt = ["BandedMatrices", "NearestNeighbors"]
 IrregularSpectraHMatricesExt = "HMatrices"
 IrregularSpectraNearestNeighborsExt = "NearestNeighbors"
 IrregularSpectraVecchiaExt = "Vecchia"
-IrregularSpectraArnoldiMethodExt = "ArnoldiMethod"
 
 [compat]
 BandlimitedOperators = "0.1.4"
