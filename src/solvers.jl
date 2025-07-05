@@ -90,10 +90,14 @@ struct SparsePreconditioner <: KrylovPreconditioner
 end
 default_perturb(pre::SparsePreconditioner) = 1e-10
 
+# Until/unless I can cook up a way to make this preconditioner work well enough
+# to be a useful option in _some_ setting, I think better not to offer it.
+#=
 struct BandedPreconditioner <: KrylovPreconditioner
   bandwidth::Int64
 end
 default_perturb(pre::BandedPreconditioner) = 0.0
+=#
 
 function KrylovSolver(p; pre_kernel::Type{K}=DefaultKernel, maxit=500,
                       perturbation=default_perturb(p), atol=1e-11, rtol=1e-10) where{K}
@@ -102,6 +106,7 @@ end
 
 function krylov_preconditioner!(pts_sa, Ω, solver::KrylovSolver{NoPreconditioner,K};
                                 verbose=false) where{K}
+  verbose && println("No preconditioner in use.")
   (false, I)
 end
 
@@ -158,7 +163,8 @@ function solve_linsys(pts, win, Ω, solver::KrylovSolver; verbose=false)
 end
 
 function default_solver(pts; perturbation=1e-10)
-  if length(pts) > 5_000
+  is_gridded = gappy_grid_Ω(pts; info=false)[1]
+  if !is_gridded && length(pts) > 5_000
     @warn """For large datasets, the default solver (Krylov with a dense Cholesky preconditioner)
     can have a long runtime. Consider ]add-ing the weakdep HMatrices and using the following
     solver instead:
@@ -171,7 +177,11 @@ function default_solver(pts; perturbation=1e-10)
 
     """
   end
-  KrylovSolver(CholeskyPreconditioner(); perturbation=perturbation)
+  if is_gridded
+    @info "Points appear to be on a gappy lattice, in which case one can often skip the use of a preconditioner. If convergence is slow, please manually specify a preconditioner in the constructor of your `KrylovSolver`. See the example files for a demonstration. Alternatively, sometimes you can reduce the `atol` and `rtol` of the solver without impacting results but significantly speeding up weight computation. You can experiment with this with `KrylovSolver(NoPreconditioner(); atol=1e-8, rtol=1e-6)` (for example)."  maxlog=1
+  end
+  pre = is_gridded ? NoPreconditioner() : CholeskyPreconditioner()
+  KrylovSolver(pre; perturbation=perturbation)
 end
 
 # Method added in an extension.

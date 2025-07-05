@@ -8,6 +8,8 @@ function default_Ω(pts::Vector{Float64}, g; check=true)
     _a < a && @warn "Your window function g(x) has support [$a, $b] and you have a point $(_a) < $a."
     _b > b && @warn "Your window function g(x) has support [$a, $b] and you have a point $(_b) > $b."
   end
+  (is_gridded, gridded_Ω) = gappy_grid_Ω(pts)
+  is_gridded && return gridded_Ω
   0.8*length(pts)/(4*(b-a))
 end
 

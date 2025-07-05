@@ -99,6 +99,8 @@ end
 
 function default_Ω(pts::Vector{Float64}, sw::Sine)
   @info "Since the sine window is not very concentrated, the default Ω is slightly lower than with windows like the Kaiser. But you can often resolve higher Ω than this default without huge blowup, so feel free to experiment with manually setting Ω yourself." maxlog=1
+  (is_gridded, gridded_Ω) = gappy_grid_Ω(pts)
+  is_gridded && return gridded_Ω
   0.7*length(pts)/(4*(sw.b-sw.a))
 end
 
@@ -257,6 +259,8 @@ function prolate_minimal_m(p::Prolate1D)
 end
 
 function default_Ω(pts::Vector{Float64}, g::Prolate1D; check=false)
+  (is_gridded, gridded_Ω) = gappy_grid_Ω(pts)
+  is_gridded && return gridded_Ω
   minimum(g.intervals) do (aj, bj)
     nj = count(x-> aj <= x <= bj, pts)
     0.8*nj/(4*(bj - aj))
@@ -414,6 +418,8 @@ end
 # TODO (cg 2025/04/26 13:44): figure out a better default Ω here that is safe
 # enough to give weights with a decent norm but also not needlessly cautious.
 function default_Ω(pts::Vector{SVector{2,Float64}}, sp::TensorProduct2DWindow)
+  (is_gridded, gridded_Ω) = gappy_grid_Ω(pts)
+  is_gridded && return gridded_Ω
   mΩ = min(default_Ω(getindex.(pts, 1), sp.s1), default_Ω(getindex.(pts, 2), sp.s2))
   Ω  = sqrt(mΩ)/2
   (Ω, Ω)

@@ -151,7 +151,7 @@ result in the format required for the `Prolated1D` constructor:
   [...] # downstream tasks
 ```
 
-## Multitaper estimators in 1D
+## Automatic multitaper estimators in 1D
 
 If you pick a generous enough bandwidth that multiple prolate functions have
 good concentration, `IrregularSpectra.jl` will automatically provide you with a
@@ -164,6 +164,14 @@ for processes observed at irregular locations and an SDF supported on the entire
 real line means dramatically reducing how far in the spectrum you can safely
 look. For this reason, cranking up the bandwidth and trying to use many tapers
 can produce more dramatic visible artifacts.
+
+## Automatic detection of data on a gappy grid
+
+Irregular sampling from a gappy grid is a very special case of the more general
+irregular sampling problem that this package aims to offer functionality for.
+With that in mind, we have implemented prototype heuristic tools for detecting
+whether the given locations are on a gappy grid and automatically exploiting the
+available speedups in that case.
 
 # Roadmap
 

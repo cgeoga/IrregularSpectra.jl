@@ -281,3 +281,21 @@ function gss(obj, _a, _b; maxit=1000, atol=1e-8)
   throw(error("No convergence to tolerance $atol in $maxit iterations."))
 end
 
+function gappy_grid_Ω(pts::Vector{Float64}; info=true)
+  issorted(pts) || throw(error("You should be providing this function (and all functions in this package) sorted points if you are in 1D."))
+  dpts     = sort(diff(pts))
+  min_diff = dpts[1]
+  quarter_quantile_diff = dpts[div(length(dpts), 4)]
+  is_gridded = (min_diff ≈ quarter_quantile_diff)
+  (is_gridded && info) && @info "Points appear to be on a gappy lattice, picking grid-based Nyquist frequency Ω. If that is not correct, please supply your own Ω."
+  (is_gridded, inv(min_diff)/2)
+end
+
+function gappy_grid_Ω(pts::Vector{SVector{D,Float64}}; info=true) where{D}
+  ptsj    = [sort(unique(getindex.(pts, j))) for j in 1:D]
+  results = gappy_grid_Ω.(ptsj; info=false)
+  is_gridded = all(x->x[1], results)
+  (is_gridded && info) && @info "Points appear to be on a gappy lattice, picking grid-based Nyquist frequency Ω. If that is not correct, please supply your own Ω."
+  (is_gridded, ntuple(j->results[j][2], D))
+end
+
