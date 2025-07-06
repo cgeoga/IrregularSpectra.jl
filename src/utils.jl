@@ -286,7 +286,7 @@ function gappy_grid_Ω(pts::Vector{Float64}; info=true)
   dpts     = sort(diff(pts))
   min_diff = dpts[1]
   quarter_quantile_diff = dpts[div(length(dpts), 4)]
-  is_gridded = (min_diff ≈ quarter_quantile_diff)
+  is_gridded = any(j->isapprox(dpts[j], quarter_quantile_diff, rtol=1e-2), 1:10)
   (is_gridded && info) && @info "Points appear to be on a gappy lattice, picking grid-based Nyquist frequency Ω. If that is not correct, please supply your own Ω."
   (is_gridded, inv(min_diff)/2)
 end

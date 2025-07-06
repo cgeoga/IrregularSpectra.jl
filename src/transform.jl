@@ -18,14 +18,16 @@ function default_Ω(pts::Vector{SVector{1,Float64}}, g; check=true)
 end
 
 function default_frequencies(pts::Vector{Float64}, g, Ω::Float64)
-  fmax = Ω/2
+  (is_gridded, gridded_Ω) = gappy_grid_Ω(pts; info=false)
+  fmax = is_gridded ? min(Ω, gridded_Ω) : Ω/2
   len  = hasmethod(bandwidth, (typeof(g),)) ? 4*fmax/bandwidth(g) : length(pts)/4
   collect(range(-fmax, fmax, length=Int(ceil(len))))
 end
 
 function default_frequencies(pts::Vector{SVector{D,Float64}}, 
                              g, Ω::NTuple{D,Float64}) where{D}
-  fmax   = Ω./2
+  (is_gridded, gridded_Ω) = gappy_grid_Ω(pts; info=false)
+  fmax   = is_gridded ? ntuple(j->min(Ω[j], gridded_Ω[j]), D) : Ω./2
   totlen = hasmethod(bandwidth, (typeof(g),)) ? 4*fmax/bandwidth(g) : length(pts)/4
   len    = Int(ceil(totlen^(1/D)))
   fg1dv  = [range(-fmax[j], fmax[j], length=len) for j in eachindex(fmax)]
