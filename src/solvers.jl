@@ -64,6 +64,7 @@ struct KrylovSolver{P,K} <: LinearSystemSolver where{P,K}
   maxit::Int64
   atol::Float64
   rtol::Float64
+  inflation::Float64
 end
 
 abstract type KrylovPreconditioner end
@@ -100,8 +101,9 @@ default_perturb(pre::BandedPreconditioner) = 0.0
 =#
 
 function KrylovSolver(p; pre_kernel::Type{K}=DefaultKernel, maxit=500,
-                      perturbation=default_perturb(p), atol=1e-11, rtol=1e-10) where{K}
-  KrylovSolver(p, pre_kernel, perturbation, maxit, atol, rtol)
+                      perturbation=default_perturb(p), atol=1e-11, 
+                      rtol=1e-10, inflation=1.0) where{K}
+  KrylovSolver(p, pre_kernel, perturbation, maxit, atol, rtol, inflation)
 end
 
 function krylov_preconditioner!(pts_sa, Ω, solver::KrylovSolver{NoPreconditioner,K};
@@ -137,24 +139,55 @@ function krylov_preconditioner!(pts_sa::Vector{SVector{1,Float64}}, Ω,
   (true, Mf)
 end
 
+struct OfflobeControl
+  F::NUFFT3
+  Fwbuf::Vector{ComplexF64}
+  rhs::Vector{ComplexF64}
+  ixs::Vector{Int64}
+  flat_tol::Float64
+  rtol::Float64
+end
+
+function (olc::OfflobeControl)(ws)
+  mul!(olc.Fwbuf, olc.F, ws.x)
+  should_fail = false
+  @show (abs(olc.Fwbuf[end]), max(olc.flat_tol, olc.rtol*abs(olc.rhs[end])))
+  for ix in olc.ixs
+    abs_solved  = abs(olc.Fwbuf[ix])
+    abs_should  = max(olc.flat_tol, olc.rtol*abs(olc.rhs[ix]))
+    abs_solved > abs_should && return false
+  end
+  true
+end
+
 function solve_linsys(pts, win, Ω, solver::KrylovSolver; verbose=false)
-  (wgrid, glwts) = glquadrule(krylov_nquad(pts, win), .-Ω, Ω)
+  linsys_Ω       = Ω.*solver.inflation
+  (wgrid, glwts) = glquadrule(krylov_nquad(pts, win), .-linsys_Ω, linsys_Ω)
   rhs            = linsys_rhs(win, wgrid)
   pts_sa         = static_points(pts)
   wgrid_sa       = static_points(wgrid)
-  kernel         = gen_kernel(solver, pts_sa, Ω)
+  kernel         = gen_kernel(solver, pts_sa, linsys_Ω)
   D              = Diagonal(sqrt.(glwts.*fouriertransform(kernel, wgrid)))
-  (_ldiv, pre)   = krylov_preconditioner!(pts_sa, Ω, solver; verbose=verbose)
-  F              = PreNUFFT3(collect(wgrid_sa.*(2*pi)), pts_sa, -1, D)
+  (_ldiv, pre)   = krylov_preconditioner!(pts_sa, linsys_Ω, solver; verbose=verbose)
+  DF             = PreNUFFT3(collect(wgrid_sa.*(2*pi)), pts_sa, -1, D)
+  F              = DF.F 
+  #=
+  offlobe_ixs    = findall(w->norm(w) > bandwidth(win), wgrid)
+  Fwbuf          = zeros(ComplexF64, length(wgrid_sa))
+  =#
   vrb            = verbose ? 10 : 0
   wts = map(eachcol(rhs)) do rhsj
-    lsmr(F, D*rhsj, N=pre, verbose=vrb, etol=0.0, axtol=0.0, atol=solver.atol, 
+    lsmr(DF, D*rhsj, N=pre, verbose=vrb, etol=0.0, axtol=0.0, atol=solver.atol, 
          btol=0.0, rtol=solver.rtol, conlim=Inf, ldiv=_ldiv, itmax=solver.maxit)[1]
+    #olc = OfflobeControl(F, Fwbuf, collect(rhsj), offlobe_ixs, sqrt(eps()), 2.0)
+    #lsmr(DF, D*rhsj, N=pre, verbose=vrb, etol=0.0, axtol=0.0, atol=0.0, 
+    #     btol=0.0, rtol=0.0, conlim=Inf, ldiv=_ldiv, itmax=solver.maxit, callback=olc)[1]
   end
+  (wgrid, glwts) = glquadrule(krylov_nquad(pts, win), .-Ω, Ω)
+  wgrid_sa       = static_points(wgrid)
   for wtsj in wts
     l2norm = let tmp = Vector{ComplexF64}(undef, size(rhs, 1))
-      _F = NUFFT3(collect(wgrid_sa.*(2*pi)), pts_sa, -1)
-      mul!(tmp, _F, wtsj)
+      mul!(tmp, F, wtsj)
       sqrt(dot(glwts, abs2.(tmp)))
     end
     wtsj ./= l2norm

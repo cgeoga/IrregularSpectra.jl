@@ -140,7 +140,7 @@ function y_slice_intervals(xval, ygrid, missing_sorted)
   gixs = searchsorted(missing_sorted, xval, by=t->t[1])
   gaps = sort(unique(getindex.(missing_sorted[gixs], 2)))
   foreach(v->delete!(y, v), gaps)
-  gappy_intervals(sort(collect(y)); minlen=0)
+  gappy_intervals(sort(collect(y)); minlen=2)
 end
 
 function gappy_rule(xgrid::AbstractVector{Float64}, 
@@ -165,6 +165,15 @@ function gappy_rule(xgrid::AbstractVector{Float64},
     (nodes_2d, wt)
   end
   (reduce(vcat, getindex.(row_rules, 1)), reduce(vcat, getindex.(row_rules, 2)))
+end
+
+function glquarule_gappy_lattice(bw::Float64, xgrid::AbstractVector{Float64}, 
+                                 ygrid::AbstractVector{Float64},
+                                 missing_values::Vector{SVector{2,Float64}})
+  (issorted(xgrid) && issorted(ygrid)) || throw(error("Please sort your x- and y-grid inputs."))
+  missing_sorted = sort(missing_values, by=t->t[1])
+  Ω = (inv(xgrid[2]-xgrid[1])/2, inv(ygrid[2]-ygrid[1])/2)
+  gappy_rule(xgrid, ygrid, missing_sorted, Ω.*8)
 end
 
 function threaded_km_assembly(kernel::K, pts) where{K}

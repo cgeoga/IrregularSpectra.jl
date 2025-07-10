@@ -277,6 +277,8 @@ struct Prolate2D <: ImplicitWindow
   b::NTuple{2,Float64}
 end
 
+bandwidth(p2d::Prolate2D) = p2d.bandwidth
+
 function slepkernel(xmy::SVector{2,Float64}, bw::Float64)
   nx = 2*pi*bw*norm(xmy)
   iszero(nx) && return 0.5
@@ -321,72 +323,25 @@ end
 #
 struct QuadratureRuleProlate{D}
   bandwidth::Float64 # this is a _radius_.
-  coarse_nodes::Vector{SVector{D,Float64}}
-  coarse_weights::Vector{Float64}
-  fine_nodes::Vector{SVector{D,Float64}}
-  fine_weights::Vector{Float64}
+  nodes::Vector{SVector{D,Float64}}
+  weights::Vector{Float64}
+  Ω::NTuple{D,Float64}
 end
+bandwidth(qp::QuadratureRuleProlate) = p2d.bandwidth
 
-function QuadratureRuleProlate(bw::Float64, xgrid::AbstractVector{Float64}, 
-                               ygrid::AbstractVector{Float64},
-                               missing_values::Vector{SVector{2,Float64}})
-  (issorted(xgrid) && issorted(ygrid)) || throw(error("Please sort your x- and y-grid inputs."))
-  missing_sorted = sort(missing_values, by=t->t[1])
-  # Some stand-in Nyquist frequencies.
-  Ω = IrregularSpectra._default_Ω_quadprolate(length(xgrid)*length(ygrid), xgrid[1], 
-                                              xgrid[end], ygrid[1], ygrid[end])
-  # coarse rule, which just needs to resolve the support frequency of the
-  # prolate function (although we bump it up a bit because the concentration is
-  # not always fantastic).
-  coarse_m = (Int(ceil(bw*(xgrid[end] - xgrid[1]))*8),
-              Int(ceil(bw*(ygrid[end] - ygrid[1]))*8))
-  (coarse_nodes, coarse_weights) = gappy_rule(xgrid, ygrid, missing_sorted, coarse_m)
-  # fine rule, interpolating up to the Nyquist level to resolve the highest
-  # oscillations.
-  (fine_nodes, fine_weights) = gappy_rule(xgrid, ygrid, missing_sorted, Ω.*8)
-  QuadratureRuleProlate(bw, coarse_nodes, coarse_weights, fine_nodes, fine_weights)
-end
-
-function prolate_minimal_m(p::QuadratureRuleProlate)
-  (a1, b1) = extrema(x->x[1], p.nodes)
-  m = 2*abs(b1 - a1)*4*p.bandwidth
-  if D == 2
-    (a2, b2) = extrema(x->x[2], p.nodes)
-    m2 = 2*abs(b2 - a2)*4*p.bandwidth
-    m = max(m, m2)
-  end
-  m
-end
+default_Ω(pts::Vector{SVector{D,Float64}}, p::QuadratureRuleProlate{D}) where{D} = p.Ω
 
 function linsys_rhs(p::QuadratureRuleProlate{2}, 
                     wgrid::AbstractVector{SVector{2,Float64}})
-  # Step 1: compute the prolate function on a quadrature grid that resolves the
-  # bandwidth.
-  cslep = prolate_fromrule(p.bandwidth, p.coarse_nodes, p.coarse_weights)
-  # Step 2: obtain the prolate on a finer grid that can resolve the actual
-  # oscillations of wgrid.
-  slep = prolate_interpolate(p.bandwidth, p.coarse_nodes, p.coarse_weights, 
-                             cslep, p.fine_nodes, p.fine_weights)
-  # Step 3: compute their CFT.
-  nufftop = NUFFT3(collect(wgrid.*(2*pi)), p.fine_nodes, -1)
-  spectra = Vector{ComplexF64}(undef, length(wgrid))
-  hcat(mul!(spectra, nufftop, complex(p.fine_weights.*slep)))
-end
-
-function _default_Ω_quadprolate(n, a1, b1, a2, b2)
-  Ω1 = 0.8*n/((4*b1 - a1))
-  Ω2 = 0.8*n/((4*b2 - a2))
-  Ω  = sqrt(min(Ω1, Ω2))/2
-  (Ω, Ω)
-end
-
-function default_Ω(pts::Vector{SVector{2,Float64}}, p::QuadratureRuleProlate{2})
-  (a1, b1) = extrema(x->x[1], pts)
-  (a2, b2) = extrema(x->x[2], pts)
-  _default_Ω_quadprolate(length(pts), a1, b1, a2, b2)
+  slep    = prolate_fromrule(p.bandwidth, p.nodes, p.weights)
+  nufftop = NUFFT3(collect(wgrid.*(2*pi)), p.nodes, -1)
+  spectra = Matrix{ComplexF64}(undef, length(wgrid), size(slep, 2))
+  hcat(mul!(spectra, nufftop, complex(p.weights.*slep)))
 end
 
 
+
+#=
 #
 # Tensor product of two 1D windows:
 #
@@ -424,4 +379,4 @@ function default_Ω(pts::Vector{SVector{2,Float64}}, sp::TensorProduct2DWindow)
   Ω  = sqrt(mΩ)/2
   (Ω, Ω)
 end
-
+=#

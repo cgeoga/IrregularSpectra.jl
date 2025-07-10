@@ -17,6 +17,17 @@ function default_Ω(pts::Vector{SVector{1,Float64}}, g; check=true)
   (default_Ω(getindex.(pts, 1), g; check=check),)
 end
 
+function default_Ω(pts::Vector{SVector{2,Float64}}, g; check=true)
+  (is_gridded, gridded_Ω) = gappy_grid_Ω(pts)
+  is_gridded && return gridded_Ω
+  p1 = sort(unique(getindex.(pts, 1)))
+  p2 = sort(unique(getindex.(pts, 2)))
+  Ω1 = default_Ω(p1, Kaiser(p.bandwidth, a=p1[1], b=p1[end]))
+  Ω2 = default_Ω(p2, Kaiser(p.bandwidth, a=p2[1], b=p2[end]))
+  Ω  = sqrt(min(Ω1, Ω2))/2
+  (Ω, Ω)
+end
+
 function default_frequencies(pts::Vector{Float64}, g, Ω::Float64)
   (is_gridded, gridded_Ω) = gappy_grid_Ω(pts; info=false)
   fmax = is_gridded ? min(Ω, gridded_Ω) : Ω/2
