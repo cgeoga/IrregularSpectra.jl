@@ -199,15 +199,23 @@ function default_solver(pts; perturbation=1e-10)
   is_gridded = gappy_grid_Ω(pts; info=false)[1]
   if !is_gridded && length(pts) > 5_000
     @warn """For large datasets, the default solver (Krylov with a dense Cholesky preconditioner)
-    can have a long runtime. Consider ]add-ing the weakdep HMatrices and using the following
-    solver instead:
+    can have a long runtime. 
 
+    In 1D: Consider ]add-ing the weakdep HMatrices and using the following solver instead:
     ```
       using HMatrices
       solver = KrylovSolver(HMatrixPreconditioner(1e-8, 1e-8)) 
       estimate_sdf([...], solver=solver, [...])
     ```
 
+    In 2D: Considering ]add-ing the weakdep NearestNeighbors and using the following solver instead:
+    ```
+      using NearestNeighbors
+      solver = KrylovSolver(SparsePreconditioner(1e-12)) 
+      estimate_sdf([...], solver=solver, [...])
+    ```
+
+    See the docstrings for more details.
     """
   end
   if is_gridded

@@ -142,6 +142,11 @@ function gen_kernel(ks::KrylovSolver{P,GaussKernel},
   GaussKernel(Ω; perturbation=ks.perturbation)
 end
 
+function kernel_tol_radius(::Val{1}, gk::GaussKernel, tol::Float64)
+  gk0 = gk(SA[0.0], SA[0.0])
+  sqrt(-log(tol*gk0))
+end
+
 #=
 function gen_kernel(ks::SketchSolver{GaussKernel},
                     pts::Vector{SVector{D,Float64}}, Ω) where{D}
