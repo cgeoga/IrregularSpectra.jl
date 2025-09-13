@@ -23,7 +23,7 @@ module IrregularSpectraNearestNeighborsExt
       J      = reduce(vcat, [fill(j, length(ixs[j])) for j in eachindex(ixs)])
       V      = [kernel(pts_sa[jk[1]], pts_sa[jk[2]]) for jk in zip(I,J)]
       M2ix   = sparse(I, J, V)
-      Mf     = IrregularSpectra.LDivWrapper(ldlt(Symmetric(M2ix)))
+      Mf     = IrregularSpectra.LDivWrapper(cholesky(Symmetric(M2ix)))
     end
     verbose && @printf "preconditioner assembly time: %1.3fs\n" pre_time
     (true, Mf)

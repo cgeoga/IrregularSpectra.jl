@@ -85,6 +85,8 @@ function fouriertransform(ka::Kaiser, w::Float64)
   (cispi(2*w*c/s)/s)*unitkbwindow_ft(w/s, ka.beta)/ka.normalizer
 end
 
+fouriertransform(ka::Kaiser, w::SVector{1,Float64}) = fouriertransform(ka, w[1])
+
 linsys_rhs(ka::Kaiser, frequency_grid) = hcat(fouriertransform.(Ref(ka), frequency_grid))
 
 
@@ -309,12 +311,14 @@ function linsys_rhs(p::Prolate2D, wgrid::AbstractVector{SVector{2,Float64}})
   mul!(spectra, nufftop, complex(weights.*slep))
 end
 
+#=
 function default_Ω(pts::Vector{SVector{2,Float64}}, p::Prolate2D)
   Ω1 = default_Ω(getindex.(pts, 1), Kaiser(p.bandwidth, a=p.a[1], b=p.b[1]))
   Ω2 = default_Ω(getindex.(pts, 2), Kaiser(p.bandwidth, a=p.a[2], b=p.b[2]))
   Ω  = sqrt(min(Ω1, Ω2))/2
   (Ω, Ω)
 end
+=#
 
 #
 # QuadratureRuleProlate: a prolate computed directly from a quadrature rule,

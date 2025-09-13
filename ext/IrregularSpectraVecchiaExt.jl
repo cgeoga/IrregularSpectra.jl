@@ -10,6 +10,8 @@ module IrregularSpectraVecchiaExt
 
   struct SparseInvCholesky
     Us::UpperTriangular{Float64, SparseMatrixCSC{Float64, Int64}}
+    perm::Vector{Int64}
+    iperm::Vector{Int64}
   end
 
   LinearAlgebra.ishermitian(scp::SparseInvCholesky) = true
@@ -37,14 +39,14 @@ module IrregularSpectraVecchiaExt
                       solver.preconditioner.ncond, 
                       _kernel; randomize=false)
       p   = vec(Int64.(reduce(vcat, cfg.data)))
-      permute!(pts_sa, p)
+      permute!(pts_sa, p) # really should permute the solution with invperm...
       Us  = sparse(Vecchia.rchol(cfg, Float64[]; use_tiles=true, issue_warning=false))
     end
     if multithread
       BLAS.set_num_threads(blas_nthreads)
     end
     verbose && @printf "Preconditioner assembly time: %1.3fs\n" pre_time
-    (false, SparseInvCholesky(Us))
+    (false, SparseInvCholesky(Us, p, invperm(p)))
   end
 
 end

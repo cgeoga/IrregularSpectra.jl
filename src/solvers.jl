@@ -81,7 +81,7 @@ default_perturb(pre::HMatrixPreconditioner)  = 1e-6
 struct VecchiaPreconditioner <: KrylovPreconditioner
   ncond::Int64 # generic suggestion: 30
 end
-default_perturb(pre::VecchiaPreconditioner)  = 1e-3
+default_perturb(pre::VecchiaPreconditioner)  = 1e-2
 
 struct CholeskyPreconditioner <: KrylovPreconditioner end
 default_perturb(pre::CholeskyPreconditioner) = 1e-10
@@ -131,7 +131,7 @@ function krylov_preconditioner!(pts_sa::Vector{SVector{1,Float64}}, Ω,
     ixs = [inrange1d(_pts, x[], radius) for x in pts_sa]
     I   = reduce(vcat, ixs)
     J   = reduce(vcat, [fill(j, length(ixs[j])) for j in eachindex(ixs)])
-    V   = [kernel(_pts[jk[1]], _pts[jk[2]]) for jk in zip(I, J)]
+    V   = [kernel(pts_sa[jk[1]], pts_sa[jk[2]]) for jk in zip(I, J)]
     S   = Symmetric(sparse(I, J, V))
     Mf  = LDivWrapper(ldlt(S))
   end

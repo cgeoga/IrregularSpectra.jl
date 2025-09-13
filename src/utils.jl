@@ -301,8 +301,7 @@ function gappy_grid_Ω(pts::Vector{Float64}; info=true)
 end
 
 function gappy_grid_Ω(pts::Vector{SVector{D,Float64}}; info=true) where{D}
-  ptsj    = [sort(unique(getindex.(pts, j))) for j in 1:D]
-  results = gappy_grid_Ω.(ptsj; info=false)
+  results    = [gappy_grid_Ω(sort(unique(getindex.(pts, j))); info=false) for j in 1:D]
   is_gridded = all(x->x[1], results)
   (is_gridded && info) && @info "Points appear to be on a gappy lattice, picking grid-based Nyquist frequency Ω. If that is not correct, please supply your own Ω."
   (is_gridded, ntuple(j->results[j][2], D))

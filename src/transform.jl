@@ -22,8 +22,8 @@ function default_Ω(pts::Vector{SVector{2,Float64}}, g; check=true)
   is_gridded && return gridded_Ω
   p1 = sort(unique(getindex.(pts, 1)))
   p2 = sort(unique(getindex.(pts, 2)))
-  Ω1 = default_Ω(p1, Kaiser(p.bandwidth, a=p1[1], b=p1[end]))
-  Ω2 = default_Ω(p2, Kaiser(p.bandwidth, a=p2[1], b=p2[end]))
+  Ω1 = default_Ω(p1, Kaiser(bandwidth(g), a=p1[1], b=p1[end]))
+  Ω2 = default_Ω(p2, Kaiser(bandwidth(g), a=p2[1], b=p2[end]))
   Ω  = sqrt(min(Ω1, Ω2))/2
   (Ω, Ω)
 end
@@ -39,8 +39,8 @@ function default_frequencies(pts::Vector{SVector{D,Float64}},
                              g, Ω::NTuple{D,Float64}) where{D}
   (is_gridded, gridded_Ω) = gappy_grid_Ω(pts; info=false)
   fmax   = is_gridded ? ntuple(j->min(Ω[j], gridded_Ω[j]), D) : Ω./2
-  totlen = hasmethod(bandwidth, (typeof(g),)) ? 4*fmax/bandwidth(g) : length(pts)/4
-  len    = Int(ceil(totlen^(1/D)))
+  totlen = length(pts)
+  len    = Int(ceil(totlen.^(1/D)))
   fg1dv  = [range(-fmax[j], fmax[j], length=len) for j in eachindex(fmax)]
   fgd    = vec(SVector{D,Float64}.(Iterators.product(fg1dv...)))
 end
