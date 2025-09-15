@@ -90,12 +90,9 @@ function gen_kernel(ks::KrylovSolver{P,SincKernel},
   SincKernel(Ω, ks.perturbation)
 end
 
-#=
-function gen_kernel(ks::SketchSolver{SincKernel}, 
-                    pts::Vector{SVector{D,Float64}}, Ω) where{D}
-  SincKernel(Ω, 0.0)
+function kernel_tol_radius(sk::SincKernel, tol::Float64)
+  throw(error("The sinc kernel decays very slowly and is not amenable to sparse-type preconditioning. Please use a different kernel, like the GaussKernel that is default in 2+ dimensions."))
 end
-=#
 
 
 
@@ -142,9 +139,9 @@ function gen_kernel(ks::KrylovSolver{P,GaussKernel},
   GaussKernel(Ω; perturbation=ks.perturbation)
 end
 
-function kernel_tol_radius(::Val{1}, gk::GaussKernel, tol::Float64)
-  gk0 = gk(SA[0.0], SA[0.0])
-  sqrt(-log(tol*gk0))
+function kernel_tol_radius(gk::GaussKernel{D}, tol::Float64) where{D}
+  zD  = zero(SVector{D,Float64})
+  sqrt(-log(tol*gk(zD, zD)))
 end
 
 #=
@@ -186,16 +183,6 @@ end
 function gen_kernel(ks::KrylovSolver{P,MaternKernel},
                     pts::Vector{SVector{2,Float64}}, Ω) where{P}
   MaternKernel(0.5*sqrt(inv(maximum(Ω))), 4.5, ks.perturbation)
-end
-
-# Only implemented in 1D for now.
-function kernel_tol_radius(::Val{1}, mk::MaternKernel, tol::Float64)
-  b  = mk.rho
-  m0 = mk(0.0, 0.0)
-  while mk(0.0, b) > tol
-    b *= 2
-  end
-  gss(t->(mk(0.0, t)/m0 - tol)^2, 0.0, b)
 end
 
 #
