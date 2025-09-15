@@ -1,7 +1,6 @@
 
 using Test, LinearAlgebra, StableRNGs, IrregularSpectra
 using HMatrices # extensions
-using IrregularSpectra.FINUFFT
 using IrregularSpectra.StaticArrays
 
 @testset "recovery" begin

@@ -5,7 +5,8 @@ module IrregularSpectra
   using Random, Printf, Statistics, LinearAlgebra, SparseArrays
 
   # external pacakges (actual dependencies):
-  using QuadGK, FINUFFT, Bessels, FastGaussQuadrature, Krylov, StaticArrays, BandlimitedOperators
+  using Bessels, Krylov, StaticArrays, BandlimitedOperators
+  import BandlimitedOperators: glquadrule
 
   include("utils.jl")
 

@@ -41,10 +41,10 @@ Kaiser(W; a, b)
 A Kaiser window function with (half-)bandwidth W and support on [a, b].
 """
 function Kaiser(W; a=0.0, b=1.0) 
-  beta   = W*pi*abs(b-a)
-  (s, c) = (1/(b-a), -a/(b-a)-1/2)
-  # TODO (cg 2025/05/10 11:08): this is probably possible to get in closed form.
-  nr     = sqrt(quadgk(x->unitkaiser(s*x + c, beta)^2, a, b, rtol=1e-10)[1])
+  beta     = W*pi*abs(b-a)
+  (s, c)   = (1/(b-a), -a/(b-a)-1/2)
+  (no, wt) = glquadrule(128, a, b)
+  nr       = sqrt(dot(wt, [unitkaiser(s*x + c, beta)^2 for x in no]))
   Kaiser(beta, nr, a, b)
 end
 

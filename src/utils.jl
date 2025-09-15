@@ -82,16 +82,6 @@ function krylov_nquad(pts::Vector{SVector{D,Float64}}, win) where{D}
   ntuple(_->Int(ceil(sqrt(4*length(pts)))) + 10, D)
 end
 
-function glquadrule(n::Int64, a, b)
-  (no, wt) = gausslegendre(n)
-  (bmad2, bpad2) = ((b-a)/2, (b+a)/2)
-  @inbounds for j in 1:n
-    no[j] = no[j]*bmad2 + bpad2
-    wt[j] = wt[j]*bmad2
-  end
-  (no, wt)
-end
-
 function simple_adaptive_integrate(fn::F, a, b; init_size=128, 
                                    max_size=2^15, ctol=1e-10) where{F}
   n       = init_size
@@ -111,14 +101,6 @@ function simple_adaptive_integrate(fn::F, a, b; init_size=128,
     isconv  = abs(int_n - int_2n)/abs(int_2n) < ctol
   end
   int_2n
-end
-
-function glquadrule(nv::NTuple{N, Int64}, a::NTuple{N,Float64},
-                    b::NTuple{N,Float64}) where{N}
-  no_wt_v = [glquadrule(nv[j], a[j], b[j]) for j in 1:N]
-  nodes   = vec(SVector{N,Float64}.(Iterators.product(getindex.(no_wt_v, 1)...)))
-  weights = vec(prod.(Iterators.product(getindex.(no_wt_v, 2)...)))
-  (nodes, weights)
 end
 
 function glquadrule(nv::NTuple{N,Int64}, a::Float64, b::Float64) where{N}
