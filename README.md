@@ -160,7 +160,7 @@ solver = KrylovSolver(SparsePreconditioner(1e-12))
 est    = estimate_sdf(pts, sims, window; solver=solver)
 ```
 
-And you're good to go!
+And you're good to go! **See the example files for a complete demonstration.**
 
 
 ## Automatic gap splitting in 1D
