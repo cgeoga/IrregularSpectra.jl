@@ -126,7 +126,7 @@ function krylov_preconditioner!(pts_sa::Vector{SVector{1,Float64}}, Ω,
   _pts   = getindex.(pts_sa, 1)
   issorted(_pts) || throw(error("For 1D sparse preconditioner, please pre-sort your points.")) 
   kernel = gen_kernel(solver, pts_sa, Ω)
-  radius = kernel_tol_radius(Val(1), kernel, solver.preconditioner.drop_tol)
+  radius = kernel_tol_radius(kernel, solver.preconditioner.drop_tol)
   pre_time = @elapsed begin
     ixs = [inrange1d(_pts, x[], radius) for x in pts_sa]
     I   = reduce(vcat, ixs)

@@ -7,14 +7,16 @@ module IrregularSpectraNearestNeighborsExt
   using IrregularSpectra.SparseArrays
   using NearestNeighbors.Distances
   using NearestNeighbors.StaticArrays
-  import IrregularSpectra: SparsePreconditioner, GaussKernel, gen_kernel, kernel_tol_radius
+  import IrregularSpectra: SparsePreconditioner, SincKernel, GaussKernel, gen_kernel, kernel_tol_radius
+
+  kerneldistance(kernel::GaussKernel) = WeightedEuclidean((kernel.Mv.^2).*pi)
 
   function IrregularSpectra.krylov_preconditioner!(pts_sa::Vector{SVector{D,Float64}}, 
                                                    Ω::NTuple{D,Float64}, 
                                                    solver::KrylovSolver{SparsePreconditioner, K};
                                                    verbose=true) where{D,K}
     kernel = gen_kernel(solver, pts_sa, Ω)
-    distf  = WeightedEuclidean((kernel.Mv.^2).*pi)
+    distf  = kerneldistance(kernel)
     k0     = kernel(pts_sa[1], pts_sa[1])
     pre_time = @elapsed begin
       tree   = KDTree(pts_sa, distf)
