@@ -90,12 +90,14 @@ this case as follows:
 ```julia
 using IrregularSpectra
 
-# Your irregularly sampled points, supported on the listed intervals.
-intervals = [(a_1, b_1), ..., (a_k, b_k)] # see below for automatic interval detection (WIP!)
-pts       = [...] # your measurement locations
-data      = [...] # your measurement values 
+# Your irregularly sampled points and measurements, loaded in however you do it:
+pts   = [...] # your measurement locations
+data  = [...] # your measurement values 
 
-window = Prolate1D(default_prolate_bandwidth(intervals), intervals)
+# identify support intervals using some default heuristics (you can also provide
+your own precise intervals), then just create the window and proceed as usual:
+intervals = gappy_intervals(pts)
+window    = Prolate1D(intervals) # defaults for ~1-4 good tapers depending on gaps
 estimator = estimate_sdf(pts, data, window)
 ```
 
@@ -118,24 +120,48 @@ example files for a demonstration.
 
 # Experimental features/interfaces
 
-## `Krylov.jl`-powered implicit methods for weight computation
+## Accelerated preconditioning for large datasets
 
-Computing the weights required for this estimator takes O(n^3) work if done
-naively. But using the accelerations of the NUFFT and implicit Krylov methods
-with a carefully chosen preconditioner, we now offer as the default option an
-implicit method that in ideal cases scales quasilinearly instead. The secret
-sauce here is that the NUFFT accelerates the nonuniform Fourier matrix
-applications, but the linear system being solved is basically singular, and so
-you also need a clever preconditioner. 
+Using the extremely powerful
+[`Krylov.jl`](https://github.com/juliasmoothoptimizers/Krylov.jl) 
+and [`FINUFFT.jl`](https://github.com/ludvigak/FINUFFT.jl) packages, this
+package computes weights in `O(n \log n)` time for `n` points...assuming that
+your preconditioner is also at least as asymptotically fast. For good
+performance at small data sizes, the default preconditioner is a fully dense
+Cholesky-based option, which due to the extreme efficiency of LAPACK is not only
+better in terms of lower iteration counts but faster until data sizes of `n`
+around 5-10k.
 
-As of now, the default preconditioner uses a dense Cholesky factorization. This
-is `O(n^3)` operations, naturally, but for small data sizes (maybe n ~ 5-10k or
-less) it is still faster than the scalable one. For larger data sizes, there is
-an extension of this package using 
-[`HMatrices.jl`](https://github.com/IntegralEquations/HMatrices.jl) 
-that offers a truly `O(n \log n)` preconditioner, and so you can still estimate
-SDFs from hundreds of thousands of points in seconds. See
-`./example/big_demo.jl` for an example.
+For larger datasets, however, the dense preconditioner is not feasible. This
+package offers a multitude of preconditioner extensions, although several of
+them are internal objects that are sufficiently experimental that we do not
+advise using them unless you are also developing/researching in this space. The
+recommended preconditioning accelerators in one and two dimensions are as
+follows:
+
+### One dimension: [`HMatrices.jl`](https://github.com/IntegralEquations/HMatrices.jl) 
+To use this preconditioner, you modify your above code by adding the weakdep of
+`HMatrices.jl` and manually providing a solver with
+```julia
+using HMatrices
+solver = KrylovSolver(HMatrixPreconditioner(1e-12, 1e-12))
+est    = estimate_sdf(pts, sims, window; solver=solver)
+```
+
+### Two dimension: [`NearestNeighbors.jl`](https://github.com/KristofferC/NearestNeighbors.jl) 
+The associated preconditioner with this extension is the `SparsePreconditioner`,
+which thanks to `NearestNeighbors.jl` can perform the necessary queries for fast
+assembly and factorization. To use this preconditioner, please modify your
+code by adding the weakdep of `NearestNeighbors.jl` and manually providing a solver
+with
+```julia
+using NearestNeighbors
+solver = KrylovSolver(SparsePreconditioner(1e-12))
+est    = estimate_sdf(pts, sims, window; solver=solver)
+```
+
+And you're good to go!
+
 
 ## Automatic gap splitting in 1D
 
