@@ -136,7 +136,7 @@ end
 
 function gen_kernel(ks::KrylovSolver{P,GaussKernel},
                     pts::Vector{SVector{D,Float64}}, Ω) where{P,D}
-  GaussKernel(Ω; perturbation=ks.perturbation)
+  GaussKernel(Ω.*0.9; perturbation=ks.perturbation)
 end
 
 function kernel_tol_radius(gk::GaussKernel{D}, tol::Float64) where{D}
