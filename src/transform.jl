@@ -128,7 +128,7 @@ struct SpectralDensityEstimator{O,F,W}
   win::W
   freq::Vector{F}
   sdf::Vector{Float64}
-  wts::Matrix{ComplexF64}
+  wts::Matrix{Float64}
 end
 
 """

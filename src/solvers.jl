@@ -177,8 +177,8 @@ function solve_linsys(pts, win, Ω, solver::KrylovSolver; verbose=false)
   =#
   vrb            = verbose ? 10 : 0
   wts = map(eachcol(rhs)) do rhsj
-    lsmr(DF, D*rhsj, N=pre, verbose=vrb, etol=0.0, axtol=0.0, atol=solver.atol, 
-         btol=0.0, rtol=solver.rtol, conlim=Inf, ldiv=_ldiv, itmax=solver.maxit)[1]
+    real(lsmr(DF, D*rhsj, N=pre, verbose=vrb, etol=0.0, axtol=0.0, atol=solver.atol, 
+              btol=0.0, rtol=solver.rtol, conlim=Inf, ldiv=_ldiv, itmax=solver.maxit)[1])
     #olc = OfflobeControl(F, Fwbuf, collect(rhsj), offlobe_ixs, sqrt(eps()), 2.0)
     #lsmr(DF, D*rhsj, N=pre, verbose=vrb, etol=0.0, axtol=0.0, atol=0.0, 
     #     btol=0.0, rtol=0.0, conlim=Inf, ldiv=_ldiv, itmax=solver.maxit, callback=olc)[1]
@@ -187,7 +187,7 @@ function solve_linsys(pts, win, Ω, solver::KrylovSolver; verbose=false)
   wgrid_sa       = static_points(wgrid)
   for wtsj in wts
     l2norm = let tmp = Vector{ComplexF64}(undef, size(rhs, 1))
-      mul!(tmp, F, wtsj)
+      mul!(tmp, F, complex(wtsj))
       sqrt(dot(glwts, abs2.(tmp)))
     end
     wtsj ./= l2norm

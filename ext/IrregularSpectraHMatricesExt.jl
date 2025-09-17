@@ -15,7 +15,6 @@ module IrregularSpectraHMatricesExt
     kernel   = IrregularSpectra.gen_kernel(solver, pts_sa, Ω)
     sk       = KernelMatrix(kernel, pts_sa, pts_sa)
     adm      = isone(length(Ω)) ? StrongAdmissibilityStd() : WeakAdmissibilityStd()
-    @show adm
     pre_time = @elapsed begin
       H  = assemble_hmatrix(sk; rtol=solver.preconditioner.tol, atol=1e-8, adm=adm)
       Hf = try
