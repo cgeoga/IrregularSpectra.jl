@@ -160,3 +160,30 @@ function estimate_sdf(pts, data, g; Ω=default_Ω(pts, g), wts=nothing,
   SpectralDensityEstimator(Ω, g, collect(frequencies), vec(mean(est, dims=2)), wts)
 end
 
+struct CrossSpectrumEstimator{O,F,W1,W2}
+  sdf1::SpectralDensityEstimator{O,F,W1}
+  sdf2::SpectralDensityEstimator{O,F,W2}
+  cross_sdf::Vector{ComplexF64}
+  msqcoherence::Vector{Float64}
+  freq::Vector{F}
+end
+
+function estimate_cross_sdf(pts1, data1, sdf1::SpectralDensityEstimator{O,F,W1},
+                            pts2, data2, sdf2::SpectralDensityEstimator{O,F,W2};
+                            frequencies=unique(vcat(sdf1.freq, sdf2.freq))) where{O,F,W1,W2}
+  fs1  = NUFFT3(collect(frequencies.*(2*pi)), pts1, -1)
+  fs2  = NUFFT3(collect(frequencies.*(2*pi)), pts2, -1)
+  tmp1 = zeros(ComplexF64, length(frequencies))
+  tmp2 = zeros(ComplexF64, length(frequencies))
+  ixs  = vec(collect(Iterators.product(1:min(size(data1,2), size(data2,2)), 
+                                       1:min(size(sdf1.wts,2), size(sdf2.wts,2)))))
+  @info "For the given number of replicates and tapers, this estimator will involve taking $(2*length(ixs)) NUFFTs."
+  cross_sdf = mean(ixs) do (ix_j, win_j)
+    mul!(tmp1, fs1, data1[:,ix_j].*complex(sdf1.wts[:,win_j])) 
+    mul!(tmp2, fs2, data2[:,ix_j].*complex(sdf2.wts[:,win_j])) 
+    tmp1.*conj(tmp2)
+  end
+  coh2 = abs2.(cross_sdf)./(sdf1.sdf.*sdf2.sdf)
+  CrossSpectrumEstimator(sdf1, sdf2, cross_sdf, coh2, frequencies)
+end
+
