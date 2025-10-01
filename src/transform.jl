@@ -71,7 +71,7 @@ solved. Options are:
     the default which uses `Krylov.lsmr` to compute the weights in an entirely
     matrix-free way. The `::KrylovPreconditioner` object is crucial for this to
     be accurate.  For small data sizes (maybe n ~ 5k or lower), the default
-    `CholeskyPreconditioner()` is your best option. But for larger data sizes,
+    `DensePreconditioner()` is your best option. But for larger data sizes,
     considering `]add`-ing `HMatrices.jl` and using the
     `HMatrixPreconditioner(atol, lu_atol)`, which will scale _much_ better. If
     your points are on a gappy regular grid, consider using

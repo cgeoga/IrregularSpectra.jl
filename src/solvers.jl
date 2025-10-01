@@ -46,7 +46,7 @@ SketchSolver(sketchtol::Float64) = SketchSolver(IdentityKernel, sketchtol, 1e-12
 # iterative solver with a cleverly chosen preconditioner to rapidly obtain
 # estimator weights. Below you will see several different varieties of
 # preconditioners that are implemented, some of which require the HMatrices
-# extension. For small data sizes (n ≤ 10k, say), the CholeskyPreconditioner is
+# extension. For small data sizes (n ≤ 10k, say), the DensePreconditioner is
 # probably going to be the fastest. 
 #
 # NOTE: the methods
@@ -83,8 +83,8 @@ struct VecchiaPreconditioner <: KrylovPreconditioner
 end
 default_perturb(pre::VecchiaPreconditioner)  = 1e-2
 
-struct CholeskyPreconditioner <: KrylovPreconditioner end
-default_perturb(pre::CholeskyPreconditioner) = 1e-10
+struct DensePreconditioner <: KrylovPreconditioner end
+default_perturb(pre::DensePreconditioner) = 1e-10
 
 struct SparsePreconditioner <: KrylovPreconditioner
   drop_tol::Float64
@@ -112,7 +112,7 @@ function krylov_preconditioner!(pts_sa, Ω, solver::KrylovSolver{NoPreconditione
   (false, I)
 end
 
-function krylov_preconditioner!(pts_sa, Ω, solver::KrylovSolver{CholeskyPreconditioner,K};
+function krylov_preconditioner!(pts_sa, Ω, solver::KrylovSolver{DensePreconditioner,K};
                                 verbose=false) where{K}
   kernel = gen_kernel(solver, pts_sa, Ω)
   M = threaded_km_assembly(kernel, pts_sa)
@@ -221,7 +221,7 @@ function default_solver(pts; perturbation=1e-10)
   if is_gridded
     @info "Points appear to be on a gappy lattice, in which case one can often skip the use of a preconditioner. If convergence is slow, please manually specify a preconditioner in the constructor of your `KrylovSolver`. See the example files for a demonstration. Alternatively, sometimes you can reduce the `atol` and `rtol` of the solver without impacting results but significantly speeding up weight computation. You can experiment with this with `KrylovSolver(NoPreconditioner(); atol=1e-8, rtol=1e-6)` (for example)."  maxlog=1
   end
-  pre = is_gridded ? NoPreconditioner() : CholeskyPreconditioner()
+  pre = is_gridded ? NoPreconditioner() : DensePreconditioner()
   KrylovSolver(pre; perturbation=perturbation)
 end
 

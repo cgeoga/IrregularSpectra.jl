@@ -14,7 +14,7 @@ module IrregularSpectra
   export gappy_intervals
 
   include("solvers.jl")
-  export DenseSolver, KrylovSolver, NoPreconditioner, CholeskyPreconditioner, VecchiaPreconditioner, HMatrixPreconditioner, SparsePreconditioner, gridded_nyquist_gpss
+  export DenseSolver, KrylovSolver, NoPreconditioner, DensePreconditioner, VecchiaPreconditioner, HMatrixPreconditioner, SparsePreconditioner, gridded_nyquist_gpss
 
   include("window.jl")
   export Kaiser, Sine, Prolate1D, default_prolate_bandwidth, Prolate2D

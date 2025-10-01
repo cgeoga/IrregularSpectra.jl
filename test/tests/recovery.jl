@@ -2,7 +2,7 @@
 # A very simple test that the linear system to get the weights α has been solved
 # to sufficient accuracy.
 
-for pre in (CholeskyPreconditioner(), HMatrixPreconditioner(1e-10, 1e-10))
+for pre in (DensePreconditioner(), HMatrixPreconditioner(1e-10, 1e-10))
 
   pts   = sort(rand(StableRNG(123), 1000))
   win   = Kaiser(6.0)
