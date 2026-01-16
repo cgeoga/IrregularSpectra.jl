@@ -190,7 +190,7 @@ function linsys_rhs(p::Prolate1D, wgrid::AbstractVector{Float64})
   (nodes, weights) = segment_glquadrule_nyquist(p.intervals, maximum(abs, wgrid))
   slep  = prolate_interpolate(p.bandwidth, cnodes, cweights, cslep, nodes, weights)
   # Step 2: compute its CFT.
-  nufftop = NUFFT3(collect(wgrid.*(2*pi)), nodes, -1)
+  nufftop = NUFFT3(collect(wgrid), nodes, -1; with_2pi=true)
   spectra = Matrix{ComplexF64}(undef, length(wgrid), size(slep, 2))
   mul!(spectra, nufftop, complex(weights.*slep))
 end
@@ -306,7 +306,7 @@ function linsys_rhs(p::Prolate2D, wgrid::AbstractVector{SVector{2,Float64}})
   (nodes, weights) = glquadrule((Ωl1, Ωl1), p.a, p.b)
   slep = prolate_interpolate(p.bandwidth, cnodes, cweights, cslep, nodes, weights)
   # Step 3: compute their CFT.
-  nufftop = NUFFT3(collect(wgrid.*(2*pi)), nodes, -1)
+  nufftop = NUFFT3(collect(wgrid), nodes, -1; with_2pi=true)
   spectra = Matrix{ComplexF64}(undef, length(wgrid), size(cslep, 2))
   mul!(spectra, nufftop, complex(weights.*slep))
 end
@@ -338,7 +338,7 @@ default_Ω(pts::Vector{SVector{D,Float64}}, p::QuadratureRuleProlate{D}) where{D
 function linsys_rhs(p::QuadratureRuleProlate{2}, 
                     wgrid::AbstractVector{SVector{2,Float64}})
   slep    = prolate_fromrule(p.bandwidth, p.nodes, p.weights)
-  nufftop = NUFFT3(collect(wgrid.*(2*pi)), p.nodes, -1)
+  nufftop = NUFFT3(collect(wgrid), p.nodes, -1; with_2pi=true)
   spectra = Matrix{ComplexF64}(undef, length(wgrid), size(slep, 2))
   hcat(mul!(spectra, nufftop, complex(p.weights.*slep)))
 end

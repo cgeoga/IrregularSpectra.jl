@@ -1,7 +1,7 @@
 name = "IrregularSpectra"
 uuid = "44cbfef1-da7d-499c-871f-40d6f2b94496"
+version = "0.6.5"
 authors = ["Chris Geoga <geoga@wisc.edu>", "Paul Beckman <paul.beckman@cims.nyu.edu>"]
-version = "0.6.4"
 
 [deps]
 BandlimitedOperators = "c0e4beca-6dc6-4b2a-9565-ed1726c22a21"
@@ -18,6 +18,8 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 ArnoldiMethod = "ec485272-7323-5ecc-a04f-4719b315124d"
 HMatrices = "8646bddf-ab1c-4fa7-9c51-ba187d647618"
 NearestNeighbors = "b8a86587-4115-5ab1-83bc-aa920d37bbce"
+StableRNGs = "860ef19b-820b-49d6-a774-d7a799459cd3"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Vecchia = "8d73829f-f4b0-474a-9580-cecc8e084068"
 
 [extensions]
@@ -27,8 +29,13 @@ IrregularSpectraNearestNeighborsExt = "NearestNeighbors"
 IrregularSpectraVecchiaExt = "Vecchia"
 
 [compat]
-BandlimitedOperators = "0.1.4"
+BandlimitedOperators = "0.1.8"
 Bessels = "0.2"
+HMatrices = "0.2"
 Krylov = "0.10"
+StableRNGs = "1"
 StaticArrays = "1.9"
 julia = "1.10"
+
+[targets]
+test = ["Test", "HMatrices", "StableRNGs"]

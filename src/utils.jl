@@ -36,7 +36,7 @@ end
 
 function PreNUFFT3(s1::Vector{SVector{S,Float64}}, s2::Vector{SVector{S,Float64}},
                    sgn::Int, D) where{S}
-  F    = NUFFT3(s1, s2, sgn)
+  F    = NUFFT3(s1, s2, sgn; with_2pi=true)
   abuf = Vector{ComplexF64}(undef, length(s1))
   PreNUFFT3(F, D, abuf)
 end

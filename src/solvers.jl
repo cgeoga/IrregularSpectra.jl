@@ -169,7 +169,7 @@ function solve_linsys(pts, win, Ω, solver::KrylovSolver; verbose=false)
   kernel         = gen_kernel(solver, pts_sa, linsys_Ω)
   D              = Diagonal(sqrt.(glwts.*fouriertransform(kernel, wgrid)))
   (_ldiv, pre)   = krylov_preconditioner!(pts_sa, linsys_Ω, solver; verbose=verbose)
-  DF             = PreNUFFT3(collect(wgrid_sa.*(2*pi)), pts_sa, -1, D)
+  DF             = PreNUFFT3(collect(wgrid_sa), pts_sa, -1, D)
   F              = DF.F 
   #=
   offlobe_ixs    = findall(w->norm(w) > bandwidth(win), wgrid)

@@ -151,7 +151,7 @@ function estimate_sdf(pts, data, g; Ω=default_Ω(pts, g), wts=nothing,
   if isnothing(wts)
     (Ω, wts) = window_quadrature_weights(pts, g; Ω=Ω, kwargs...)
   end
-  fs  = NUFFT3(collect(frequencies.*(2*pi)), pts, -1)
+  fs  = NUFFT3(collect(frequencies), pts, -1; with_2pi=true)
   tmp = zeros(ComplexF64, length(frequencies), size(data, 2))
   est = mean(eachcol(wts)) do wtsj
     mul!(tmp, fs, complex(Diagonal(wtsj)*data))
@@ -171,8 +171,8 @@ end
 function estimate_cross_sdf(pts1, data1, sdf1::SpectralDensityEstimator{O,F,W1},
                             pts2, data2, sdf2::SpectralDensityEstimator{O,F,W2};
                             frequencies=unique(vcat(sdf1.freq, sdf2.freq))) where{O,F,W1,W2}
-  fs1  = NUFFT3(collect(frequencies.*(2*pi)), pts1, -1)
-  fs2  = NUFFT3(collect(frequencies.*(2*pi)), pts2, -1)
+  fs1  = NUFFT3(collect(frequencies), pts1, -1; with_2pi=true)
+  fs2  = NUFFT3(collect(frequencies), pts2, -1; with_2pi=true)
   tmp1 = zeros(ComplexF64, length(frequencies))
   tmp2 = zeros(ComplexF64, length(frequencies))
   ixs  = vec(collect(Iterators.product(1:min(size(data1,2), size(data2,2)), 

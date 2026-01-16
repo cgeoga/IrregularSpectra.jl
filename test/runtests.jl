@@ -1,7 +1,8 @@
 
-using Test, LinearAlgebra, StableRNGs, IrregularSpectra
+using Test, StableRNGs, IrregularSpectra
 using HMatrices # extensions
 using IrregularSpectra.StaticArrays
+using IrregularSpectra.LinearAlgebra
 
 @testset "recovery" begin
   let scope_dummy = 0
