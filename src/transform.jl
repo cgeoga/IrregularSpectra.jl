@@ -1,5 +1,7 @@
 
 function default_Ω(pts::Vector{Float64}, g; check=true)
+  (is_gridded, gridded_Ω) = gappy_grid_Ω(pts)
+  is_gridded && return gridded_Ω
   # Note that window_support(g::YourWindow) may not be implemented, in which
   # case you either need to implement it or write a custom default_Ω.
   (a, b) = window_support(g)
@@ -8,8 +10,6 @@ function default_Ω(pts::Vector{Float64}, g; check=true)
     _a < a && @warn "Your window function g(x) has support [$a, $b] and you have a point $(_a) < $a."
     _b > b && @warn "Your window function g(x) has support [$a, $b] and you have a point $(_b) > $b."
   end
-  (is_gridded, gridded_Ω) = gappy_grid_Ω(pts)
-  is_gridded && return gridded_Ω
   0.8*length(pts)/(4*(b-a))
 end
 
@@ -123,6 +123,14 @@ function window_quadrature_weights(pts, g; solver=default_solver(pts),
   (Ω, wts)
 end
 
+# Special method for GPSS weights.
+function window_quadrature_weights(pts, g::GPSS; kwargs...)
+  (is_gappy_grid, Ω) = gappy_grid_Ω(pts, info=false)
+  is_gappy_grid || error("GPSS weights are only supported for points on a gappy lattice for now.")
+  (Ω, gridded_nyquist_gpss(pts, g.bandwidth; concentration_tol=g.concentration_tol,
+                           max_tapers=g.max_tapers))
+end
+
 struct SpectralDensityEstimator{O,F,W}
   Ω::O
   win::W
@@ -137,9 +145,11 @@ end
              wts=nothing, kwargs...) -> (frequencies, estimates)`
 
 Estimates the spectral density for the stationary process sampled at locations
-`pts` and with values given by `data` at frequencies `frequencies`. Each column
-in `data` is treated as an iid sample of the process and averaged in the final
-estimator. `Ω` is the resolution maximum for the window quadrature weights. 
+`pts` and with values given by `data` at frequencies `frequencies` with weights
+determined by the continuous time/space window function `g` (see example files
+for a demonstration). Each column in `data` is treated as an iid sample of the
+process and averaged in the final estimator. `Ω` is the resolution maximum for
+the window quadrature weights. 
 
 Any provided keyword arguments are passed to `window_quadrature_weights` if
 `wts` is `nothing`, and ignored if `wts` is provided. See the docstrings for

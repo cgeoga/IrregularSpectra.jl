@@ -5,11 +5,11 @@ module IrregularSpectraArnoldiMethodExt
   using IrregularSpectra.StaticArrays
   using IrregularSpectra.BandlimitedOperators
 
-  import IrregularSpectra: gridded_nyquist_gpss, _fast_prolate_fromrule
+  import IrregularSpectra: _fast_gridded_nyquist_gpss, _fast_prolate_fromrule
 
-  function gridded_nyquist_gpss(times::Vector{Float64}, bw; concentration_tol=1e-8, 
-                                max_tapers=5, min_krylov=max_tapers, 
-                                max_krylov=5*max_tapers)
+  function _fast_gridded_nyquist_gpss(times::Vector{Float64}, bw; concentration_tol=1e-8, 
+                                      max_tapers=5, min_krylov=2*max_tapers, 
+                                      max_krylov=5*max_tapers)
     # Step 1: using a fast sinc transform and ArnoldiMethod.jl, compute the GPSS
     # vectors. Note that especially for wider bandwidths, you will be getting a
     # soup of the well-concentrated vectors because those eigenvalues can differ
@@ -18,7 +18,7 @@ module IrregularSpectraArnoldiMethodExt
     fs  = FastBandlimited(times, times, ω->1.0, bw)
     (res, status) = partialschur(fs; tol=1e-12, nev=max_tapers, 
                                  mindim=min_krylov, maxdim=max_krylov)
-    status.converged || throw(error("Partial Schur method failed to converge! Try changing the kwarg `min_krylov` from its default value of `max_tapers` (whose default is `5`)."))
+    status.converged || throw(error("Partial Schur method failed to converge! Try changing the kwarg `min_krylov` from its default value of `max_tapers` (whose default is `10`)."))
     rel_concs    = real(res.eigenvalues)
     rel_concs  ./= rel_concs[1]
     good_conc_ix = findlast(>=(1-concentration_tol), rel_concs)
@@ -53,10 +53,10 @@ module IrregularSpectraArnoldiMethodExt
     inv(xjs[2] - xjs[1])/2
   end
 
-  function gridded_nyquist_gpss(locations::Vector{SVector{2,Float64}}, bw;
-                                concentration_tol=1e-8, max_tapers=5, 
-                                min_krylov=max_tapers, 
-                                max_krylov=5*max_tapers)
+  function fast_gridded_nyquist_gpss(locations::Vector{SVector{2,Float64}}, bw;
+                                     concentration_tol=1e-8, max_tapers=5, 
+                                     min_krylov=max_tapers, 
+                                     max_krylov=5*max_tapers)
     fs  = FastBandlimited(locations, locations, Ω->1.0, bw; polar=true)
     (res, status) = partialschur(fs; tol=1e-12, nev=max_tapers, 
                                  mindim=min_krylov, maxdim=max_krylov)

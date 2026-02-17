@@ -343,6 +343,51 @@ function linsys_rhs(p::QuadratureRuleProlate{2},
   hcat(mul!(spectra, nufftop, complex(p.weights.*slep)))
 end
 
+#
+# GPSS window:
+#
+
+"""
+`GPSS(bandwidth, concentration_tol=1e-8, max_tapers=5)`
+
+Specify a GPSS window to be used in weight computation. Note that the bandwidth
+is **not** normalized, so if you have non-unit sampling you will need to
+manually account for that (please open an issue if that is a problem for you).
+`concentration_tol` specifies how much (normalized) mass of the spectral window
+you allow to be outside of [-W, W] for bandwidth W.
+
+    GPSS(pts::Vector{Float64};
+         concentration_tol=1e-8, max_tapers=5)
+
+A second method for constructing a GPSS window that uses a simple heuristic for
+automatic bandwidth selection.
+"""
+struct GPSS
+  bandwidth::Float64
+  concentration_tol::Float64
+  max_tapers
+end
+
+GPSS(bandwidth::Float64) = GPSS(bandwidth, 1e-8, 5)
+
+function GPSS(pts::Vector{Float64}; concentration_tol=1e-8, max_tapers=5)
+  (is_gridded, gridded_Ω) = gappy_grid_Ω(pts, info=false)
+  is_gridded || error("This GPSS object at present only supports data on a gappy lattice.")
+  (min_pt, max_pt) = extrema(pts)
+  bandwidth = 6/(max_pt - min_pt)
+  GPSS(bandwidth, concentration_tol, max_tapers)
+end
+
+bandwidth(gpss::GPSS) = gpss.bandwidth
+
+function _fast_gridded_nyquist_gpss end
+
+function gridded_nyquist_gpss(pts, bandwidth::Float64; kwargs...)
+  if iszero(length(methods(_fast_gridded_nyquist_gpss)))
+    error("Please `]add` and `using ArnoldiMethod.jl` to load the extension for GPSS routines.")
+  end
+  _fast_gridded_nyquist_gpss(pts, bandwidth; kwargs...)
+end
 
 
 #=
