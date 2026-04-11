@@ -52,9 +52,10 @@ end
 From here, the estimator is easy to obtain: select the window function we wish
 to use (and it is easy to bring your own!), and use the `estimate_sdf` function.
 In this example we use a Kaiser window with half-bandwidth `6.0`, which is a
-good default choice for samples that don't have big gaps (see below for
-gap-friendly alternatives). The function `estimate_sdf`, if given multiple iid
-samples as columns in `sims`, will average the multiple estimates.
+good default choice for samples on `[-1,1]` that don't have big gaps (see below
+for gap-friendly alternatives and the manuscript for notes on adjusting your
+half-bandwidth based on domain sizes). The function `estimate_sdf`, if given multiple
+iid samples as columns in `sims`, will average the multiple estimates.
 
 ```julia
 window    = Kaiser(6.0, a=a, b=b)
@@ -104,7 +105,7 @@ pts   = [...] # your measurement locations
 data  = [...] # your measurement values 
 
 # identify support intervals using some default heuristics (you can also provide
-your own precise intervals), then just create the window and proceed as usual:
+# your own precise intervals), then just create the window and proceed as usual:
 intervals = gappy_intervals(pts)
 window    = Prolate1D(intervals) # defaults for ~1-4 good tapers depending on gaps
 estimator = estimate_sdf(pts, data, window)
