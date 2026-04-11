@@ -14,6 +14,15 @@ work, please cite it as the following paper:
 }
 ```
 
+**Note:** if you try this software and do not see good performance when the
+paper would have you believe that you should, I would be *very* grateful if you
+would open an issue and share whatever information you are willing to about what
+you tried (in particular, sharing your point locations would be the most
+helpful). This software attempts to automate or offer reasonable defaults for
+several tricky design aspects and should be viewed as a work in progress and not
+something production ready that is necessarily reflective of limitations in the
+method itself.
+
 # Basic usage demonstration
 
 Here is a heavily commented demonstration, which can also be found as a plain

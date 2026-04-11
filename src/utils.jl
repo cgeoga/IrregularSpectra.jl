@@ -54,8 +54,8 @@ function irtrapweights(pts)
 end
 
 function simulate_process(pts, kernel, m; rng=Random.default_rng())
-  K = [kernel(x, y) for x in pts, y in pts]
-  L = cholesky!(Symmetric(K)).L
+  K = threaded_km_assembly(kernel, pts)
+  L = cholesky!(Symmetric(K)).U'
   L*randn(rng, length(pts), m)
 end
 
