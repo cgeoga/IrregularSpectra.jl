@@ -10,6 +10,8 @@ module IrregularSpectra
 
   include("utils.jl")
 
+  include("lanczos_dominant.jl")
+
   include("intervals.jl")
   export gappy_intervals
 

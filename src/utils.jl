@@ -41,6 +41,38 @@ function PreNUFFT3(s1::Vector{SVector{S,Float64}}, s2::Vector{SVector{S,Float64}
   PreNUFFT3(F, D, abuf)
 end
 
+
+struct ConjugatedHermOperator{B}
+  D::Diagonal{Float64, Vector{Float64}}
+  M::B
+end
+
+Base.size(co::ConjugatedHermOperator{B})    where{B} = size(co.D)
+Base.size(co::ConjugatedHermOperator{B}, j) where{B} = size(co.D, j)
+Base.eltype(co::ConjugatedHermOperator{B})  where{B} = Float64 # hard-coded for now
+
+LinearAlgebra.issymmetric(co::ConjugatedHermOperator{B}) where{B} = true
+LinearAlgebra.ishermitian(co::ConjugatedHermOperator{B}) where{B} = true
+function LinearAlgebra.adjoint(co::ConjugatedHermOperator{B}) where{B}
+  Adjoint{Float64, ConjugatedHermOperator{B}}(co)
+end
+
+function LinearAlgebra.mul!(buf, co::ConjugatedHermOperator{B}, v) where{B}
+  mul!(buf, co.M, co.D*v)
+  D = co.D
+  for j in 1:size(D, 1)
+    view(buf, j, :) .*= D[j,j]
+  end
+  buf
+end
+
+function LinearAlgebra.mul!(buf, co::Adjoint{Float64, ConjugatedHermOperator{B}}, 
+                            v) where{B}
+  mul!(buf, co.parent, v)
+end
+
+Base.:*(co::ConjugatedHermOperator{B}, v) where{B} = mul!(similar(v), co, v)
+
 max_col_norm(M) = maximum(norm, eachcol(M))
 
 function irtrapweights(pts)
@@ -181,41 +213,6 @@ function matern_sdf(w, p)
   fpi2 = 4*pi^2
   pre  = (2^d)*(pi^(d/2))*Bessels.gamma(v+d/2)*((2*v)^v)/(Bessels.gamma(v)*rho^(2*v))
   (sig^2)*pre*(2*v/(rho^2) + fpi2*norm(w)^2)^(-v - d/2)
-end
-
-# This is a very quick-and-dirty function to compute a sparse inverse Cholesky
-# factor (or rather, an LDLt factorization with Sigma ≈ inv(L'*inv(D)*L)).  It
-# is normally the backbone of Vecchia-type methods, but in this setting it is
-# basically exact.
-#
-# TODO (cg 2024/11/21 11:41): this is my max-simple demonstration of the rchol.
-# This could of course be optimized a great deal. Including:
-# -- using banded matrices instead of sparse
-# -- pre-allocating buffers and parallelizing 
-# -- I'm sure other stuff too
-# But I doubt that this will _ever_ be the bottleneck even as it is, so it
-# doesn't seem like a high priority to me.
-function sparse_rchol(kfn, pts; k=20)
-  n = length(pts)
-  L = sparse(Diagonal(ones(n)))
-  D = zeros(n)
-  for j in 1:n
-    cix  = max(1, j-k):(j-1)
-    pt   = pts[j]
-    cpts = pts[cix]
-    Sjj  = kfn(pt, pt)
-    if j > 1
-      Scc = cholesky!(Hermitian([kfn(x,y) for x in cpts, y in cpts]))
-      Scj = [kfn(x, pt) for x in cpts]
-      kweights = Scc\Scj
-      ccov     = Sjj - dot(Scj, kweights)
-      D[j]     = ccov
-      view(L, j, cix) .= -kweights
-    else
-      D[j] = Sjj
-    end
-  end
-  (LowerTriangular(L), Diagonal(D))
 end
 
 # TODO (cg 2025/05/16 15:39): Weirdly, ldiv!(ch::CHOLMOD.Factor[...], rhs) or

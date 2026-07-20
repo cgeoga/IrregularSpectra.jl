@@ -7,6 +7,12 @@ module IrregularSpectraArnoldiMethodExt
 
   import IrregularSpectra: _fast_gridded_nyquist_gpss, _fast_prolate_fromrule
 
+  function get_nyquist_j(locations::Vector{SVector{2,Float64}}, j)
+    xj  = getindex.(locations, 1)
+    xjs = sort(unique(xj))
+    inv(xjs[2] - xjs[1])/2
+  end
+
   function _fast_gridded_nyquist_gpss(times::Vector{Float64}, bw; concentration_tol=1e-8, 
                                       max_tapers=5, min_krylov=2*max_tapers, 
                                       max_krylov=5*max_tapers)
@@ -41,18 +47,6 @@ module IrregularSpectraArnoldiMethodExt
     gpss
   end
 
-  function spatial_area(locations::Vector{SVector{2,Float64}})
-    (x_q1, x_qn) = extrema(x->x[1], locations)
-    (y_q1, y_qn) = extrema(x->x[2], locations)
-    (x_qn - x_q1)*(y_qn - y_q1)
-  end
-
-  function get_nyquist_j(locations::Vector{SVector{2,Float64}}, j)
-    xj  = getindex.(locations, 1)
-    xjs = sort(unique(xj))
-    inv(xjs[2] - xjs[1])/2
-  end
-
   function _fast_gridded_nyquist_gpss(locations::Vector{SVector{2,Float64}}, bw;
                                       concentration_tol=1e-8, 
                                       max_tapers=5, min_krylov=2*max_tapers, 
@@ -84,55 +78,6 @@ module IrregularSpectraArnoldiMethodExt
       view(gpss, :, j) ./= l2norm
     end
     gpss
-  end
-
-  struct ConjugatedHermOperator{B}
-    D::Diagonal{Float64, Vector{Float64}}
-    M::B
-  end
-
-  Base.size(co::ConjugatedHermOperator{B})    where{B} = size(co.D)
-  Base.size(co::ConjugatedHermOperator{B}, j) where{B} = size(co.D, j)
-  Base.eltype(co::ConjugatedHermOperator{B})  where{B} = Float64 # hard-coded for now
-
-  LinearAlgebra.issymmetric(co::ConjugatedHermOperator{B}) where{B} = true
-  LinearAlgebra.ishermitian(co::ConjugatedHermOperator{B}) where{B} = true
-  function LinearAlgebra.adjoint(co::ConjugatedHermOperator{B}) where{B}
-    Adjoint{Float64, ConjugatedHermOperator{B}}(co)
-  end
-
-  function LinearAlgebra.mul!(buf, co::ConjugatedHermOperator{B}, v) where{B}
-    mul!(buf, co.M, co.D*v)
-    D = co.D
-    for j in 1:size(D, 1)
-      view(buf, j, :) .*= D[j,j]
-    end
-    buf
-  end
-
-  function LinearAlgebra.mul!(buf, co::Adjoint{Float64, ConjugatedHermOperator{B}}, 
-                              v) where{B}
-    mul!(buf, co.parent, v)
-  end
-
-  function _fast_prolate_fromrule(w, nodes, weights; concentration_tol=1e-8,
-                                  max_tapers=5, min_krylov=max_tapers, 
-                                  max_krylov=5*max_tapers, tol=1e-12)
-    _M = IrregularSpectra.fast_slepian_operator(nodes, nodes, w)
-    Dw = Diagonal(sqrt.(weights))
-    M  = ConjugatedHermOperator(Dw, _M)
-    (res, status) = partialschur(M; tol, nev=max_tapers, 
-                                 mindim=min_krylov, maxdim=max_krylov)
-    status.converged || throw(error("Partial Schur method failed to converge! Try changing the kwarg `min_krylov` from its default value of `max_tapers` (whose default is `5`)."))
-    rel_concs    = real(res.eigenvalues)
-    rel_concs  ./= rel_concs[1]
-    good_conc_ix = findlast(>=(1-concentration_tol), rel_concs)
-    prolates = res.Q[:,1:good_conc_ix]
-    ldiv!(Dw, prolates)
-    for sj in eachcol(prolates)
-      sj ./= sqrt(dot(weights, abs2.(sj))) 
-    end
-    prolates 
   end
 
 end

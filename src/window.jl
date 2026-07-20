@@ -211,6 +211,12 @@ function fast_slepian_operator(x1v::Vector{SVector{2,Float64}},
   FastBandlimited(x1v, x2v, ω->inv(pi*bandwidth^2)/2, bandwidth; polar=true)
 end
 
+function fast_slepian_operator_rule(nodes, weights, bandwidth)
+  _M = IrregularSpectra.fast_slepian_operator(nodes, nodes, bandwidth)
+  Dw = Diagonal(sqrt.(weights))
+  (ConjugatedHermOperator(Dw, _M), Dw)
+end
+
 function prolate_interpolate(bandwidth, coarse_nodes, coarse_weights, 
                              coarse_values, fine_nodes, fine_weights)
   S = fast_slepian_operator(fine_nodes, coarse_nodes, bandwidth)
@@ -237,21 +243,16 @@ function _dense_prolate_fromrule(w, nodes, weights; concentration_tol=1e-8)
   prolates
 end
 
-# this method is defined in the ArnoldiMethod.jl ext.
-function _fast_prolate_fromrule end
-
 function prolate_fromrule(w, nodes, weights; concentration_tol=1e-8, kwargs...)
-  out = if length(nodes) > 3_000 && length(methods(_fast_prolate_fromrule)) > 0
-    @info "Using `ArnoldiMethod.jl` to accelerate prolate computation..." maxlog=1
-    _fast_prolate_fromrule(w, nodes, weights; concentration_tol=concentration_tol, kwargs...)
-  else
-    if length(nodes) > 3_000
-      @warn "You will be computing a dense eigendecomposition of size $(length(nodes)). If this is too large or runs too slowly, consider ]adding and `using` `ArnoldiMethod.jl`, which will load an extension for computing these prolates in quasilinear time." maxlog=1
-    end
-    _dense_prolate_fromrule(w, nodes, weights; concentration_tol=concentration_tol)
+  (M, Dw)  = fast_slepian_operator_rule(nodes, weights, w)
+  prolates = lanczos_dominant_eig(M, 1-concentration_tol, 1e-13; kwargs...)[2]
+  ldiv!(Dw, prolates)
+  for sj in eachcol(prolates)
+    sj ./= sqrt(dot(weights, abs2.(sj))) 
   end
-  @info "Obtained $(size(out, 2)) well-concentrated prolates for this domain and bandwidth $(w)."
-  out
+  prolates
+  @info "Obtained $(size(prolates, 2)) well-concentrated prolates for this domain and bandwidth $(w)."
+  prolates
 end
 
 function prolate_minimal_m(p::Prolate1D)
