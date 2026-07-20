@@ -22,9 +22,9 @@ function default_Ω(pts::Vector{SVector{2,Float64}}, g; check=true)
   is_gridded && return gridded_Ω
   p1 = sort(unique(getindex.(pts, 1)))
   p2 = sort(unique(getindex.(pts, 2)))
-  Ω1 = default_Ω(p1, Kaiser(bandwidth(g), a=p1[1], b=p1[end]))
-  Ω2 = default_Ω(p2, Kaiser(bandwidth(g), a=p2[1], b=p2[end]))
-  Ω  = sqrt(min(Ω1, Ω2))/2
+  Ω1 = length(pts)/(4*(p1[end]-p1[1]))
+  Ω2 = length(pts)/(4*(p2[end]-p2[1]))
+  Ω  = 0.75*sqrt(min(Ω1, Ω2)) # TODO (cg 2026/07/20 12:49): dial this in better.
   (Ω, Ω)
 end
 
@@ -115,7 +115,7 @@ function window_quadrature_weights(pts, g; solver=default_solver(pts),
   verbose && @printf "maxⱼ ||αⱼ||₂:             %1.5e\n" max_col_norm(wts)
   while max_col_norm(wts) > max_wt_norm 
     Ω      =  Ω.*reduction_factor
-    verbose && @printf "maxⱼ ||αⱼ||₂ > max_wt_norm: reducing to Ω=%1.3e and re-computing weights...\n" Ω
+    verbose && @printf "maxⱼ ||αⱼ||₂ > max_wt_norm: reducing Ω (or each component) by %1.3f...\n" reduction_factor
     all(Ω .< min_Ω) && throw(error("Could not achieve ||α||₂ < $max_wt_norm for Ω .> $min_Ω."))
     wts    = solve_linsys(pts, g, Ω, solver, verbose=verbose)
     verbose && @printf "maxⱼ ||αⱼ||₂:             %1.5e\n" max_col_norm(wts)

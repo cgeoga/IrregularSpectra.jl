@@ -14,8 +14,8 @@ module IrregularSpectraVecchiaExt
     _kernel = (x, y, _) -> kernel(x, y) + Float64(x==y)*solver.perturbation
     pre_time = @elapsed begin
       cond   = KNNConditioning(solver.preconditioner.ncond)
-      approx = VecchiaApproximation(pts_sa, _kernel; conditioning=cond, ordering=NoPermutation())
-      pre    = rchol_preconditioner(approx, Float64[]).U
+      approx = VecchiaApproximation(pts_sa, _kernel; conditioning=cond)
+      pre    = rchol_preconditioner(approx, Float64[])
     end
     verbose && @printf "Preconditioner assembly time: %1.3fs\n" pre_time
     (false, pre)
