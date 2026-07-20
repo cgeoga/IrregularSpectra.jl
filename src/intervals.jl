@@ -68,7 +68,7 @@ Keyword arguments:
 This is a **very heuristic** function, that is really offered just as a convenience for exploratory analysis. Please do not automatically use this on something important without inspecting the result.
 """
 function gappy_intervals(pts::Vector{Float64}; gaptol=8, minlen=128, coalesce_tol=0.005)
-  @warn "This functionality (`gappy_intervals)` is a work in progress! Please sanity check the result and use with caution. And open an issue if you hit an edge case that doesn't work well!" maxlog=1
+  @warn "This functionality (`gappy_intervals`) is a work in progress! Please sanity check the result and use with caution. And open an issue if you hit an edge case that doesn't work well!" maxlog=1
   out = _interval_gaps(pts, gaptol, minlen)
   filter!(x->x!=(0.0, 0.0), out)
   reduced = interval_coalesce!(out, coalesce_tol)

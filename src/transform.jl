@@ -173,7 +173,7 @@ end
 struct CrossSpectrumEstimator{O,F,W1,W2}
   sdf1::SpectralDensityEstimator{O,F,W1}
   sdf2::SpectralDensityEstimator{O,F,W2}
-  cross_sdf::Vector{ComplexF64}
+  cross_sdf::Vector{ComplexF64} # Restored to ComplexF64
   msqcoherence::Vector{Float64}
   freq::Vector{F}
 end
@@ -181,19 +181,37 @@ end
 function estimate_cross_sdf(pts1, data1, sdf1::SpectralDensityEstimator{O,F,W1},
                             pts2, data2, sdf2::SpectralDensityEstimator{O,F,W2};
                             frequencies=unique(vcat(sdf1.freq, sdf2.freq))) where{O,F,W1,W2}
-  fs1  = NUFFT3(collect(frequencies), pts1, -1; with_2pi=true)
-  fs2  = NUFFT3(collect(frequencies), pts2, -1; with_2pi=true)
-  tmp1 = zeros(ComplexF64, length(frequencies))
-  tmp2 = zeros(ComplexF64, length(frequencies))
-  ixs  = vec(collect(Iterators.product(1:min(size(data1,2), size(data2,2)), 
-                                       1:min(size(sdf1.wts,2), size(sdf2.wts,2)))))
-  @info "For the given number of replicates and tapers, this estimator will involve taking $(2*length(ixs)) NUFFTs."
-  cross_sdf = mean(ixs) do (ix_j, win_j)
-    mul!(tmp1, fs1, data1[:,ix_j].*complex(sdf1.wts[:,win_j])) 
-    mul!(tmp2, fs2, data2[:,ix_j].*complex(sdf2.wts[:,win_j])) 
-    tmp1.*conj(tmp2)
+  fs1   = NUFFT3(collect(frequencies), pts1, -1; with_2pi=true)
+  fs2   = NUFFT3(collect(frequencies), pts2, -1; with_2pi=true)
+  tmp1  = zeros(ComplexF64, length(frequencies))
+  tmp2  = zeros(ComplexF64, length(frequencies))
+  (ndat1, ndat2) = (size(data1,2), size(data2,2))
+  (ntap1, ntap2) = (size(sdf1.wts, 2), size(sdf2.wts, 2))
+  ndat = min(ndat1, ndat2)
+  ntap = min(ntap1, ntap2)
+  if ndat < max(ndat1, ndat2)
+    @info "Only using $ndat replicates out of $(max(ndat1, ndat2))..." 
   end
-  coh2 = abs2.(cross_sdf)./(sdf1.sdf.*sdf2.sdf)
-  CrossSpectrumEstimator(sdf1, sdf2, cross_sdf, coh2, frequencies)
+  if ntap < max(ntap1, ntap2)
+    @info "Only using $ntap weight vectors out of $(max(ntap1, ntap2)), and assuming that the _last_ indices of the weight matrix correspond to the most concentrated..." 
+  end
+  ixs   = vec(collect(Iterators.product(1:ndat, 1:ntap)))
+  n_ixs = length(ixs)
+  @info "For the given number of replicates and tapers, this estimator will involve taking $(2*n_ixs) NUFFTs."
+  marginal_1 = zeros(Float64,    length(frequencies))
+  marginal_2 = zeros(Float64,    length(frequencies))
+  cross_12   = zeros(ComplexF64, length(frequencies)) 
+  foreach(ixs) do (ix_j, win_j)
+    mul!(tmp1, fs1, data1[:,ix_j].*complex(sdf1.wts[:,ntap1-win_j+1])) 
+    mul!(tmp2, fs2, data2[:,ix_j].*complex(sdf2.wts[:,ntap2-win_j+1])) 
+    marginal_1 .+= abs2.(tmp1)
+    marginal_2 .+= abs2.(tmp2)
+    cross_12   .+= tmp1 .* conj.(tmp2)
+  end
+  marginal_1 ./= n_ixs
+  marginal_2 ./= n_ixs
+  cross_12   ./= n_ixs
+  coh12 = abs2.(cross_12) ./ (marginal_1 .* marginal_2)
+  CrossSpectrumEstimator(sdf1, sdf2, cross_12, coh12, frequencies)
 end
 

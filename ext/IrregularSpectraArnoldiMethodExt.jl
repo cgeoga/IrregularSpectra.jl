@@ -53,10 +53,10 @@ module IrregularSpectraArnoldiMethodExt
     inv(xjs[2] - xjs[1])/2
   end
 
-  function fast_gridded_nyquist_gpss(locations::Vector{SVector{2,Float64}}, bw;
-                                     concentration_tol=1e-8, max_tapers=5, 
-                                     min_krylov=max_tapers, 
-                                     max_krylov=5*max_tapers)
+  function _fast_gridded_nyquist_gpss(locations::Vector{SVector{2,Float64}}, bw;
+                                      concentration_tol=1e-8, 
+                                      max_tapers=5, min_krylov=2*max_tapers, 
+                                      max_krylov=5*max_tapers)
     fs  = FastBandlimited(locations, locations, Ω->1.0, bw; polar=true)
     (res, status) = partialschur(fs; tol=1e-12, nev=max_tapers, 
                                  mindim=min_krylov, maxdim=max_krylov)
@@ -117,11 +117,11 @@ module IrregularSpectraArnoldiMethodExt
 
   function _fast_prolate_fromrule(w, nodes, weights; concentration_tol=1e-8,
                                   max_tapers=5, min_krylov=max_tapers, 
-                                  max_krylov=5*max_tapers)
+                                  max_krylov=5*max_tapers, tol=1e-12)
     _M = IrregularSpectra.fast_slepian_operator(nodes, nodes, w)
     Dw = Diagonal(sqrt.(weights))
     M  = ConjugatedHermOperator(Dw, _M)
-    (res, status) = partialschur(M; tol=1e-12, nev=max_tapers, 
+    (res, status) = partialschur(M; tol, nev=max_tapers, 
                                  mindim=min_krylov, maxdim=max_krylov)
     status.converged || throw(error("Partial Schur method failed to converge! Try changing the kwarg `min_krylov` from its default value of `max_tapers` (whose default is `5`)."))
     rel_concs    = real(res.eigenvalues)

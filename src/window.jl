@@ -240,10 +240,10 @@ end
 # this method is defined in the ArnoldiMethod.jl ext.
 function _fast_prolate_fromrule end
 
-function prolate_fromrule(w, nodes, weights; concentration_tol=1e-8)
+function prolate_fromrule(w, nodes, weights; concentration_tol=1e-8, kwargs...)
   out = if length(nodes) > 3_000 && length(methods(_fast_prolate_fromrule)) > 0
     @info "Using `ArnoldiMethod.jl` to accelerate prolate computation..." maxlog=1
-    _fast_prolate_fromrule(w, nodes, weights; concentration_tol=concentration_tol)
+    _fast_prolate_fromrule(w, nodes, weights; concentration_tol=concentration_tol, kwargs...)
   else
     if length(nodes) > 3_000
       @warn "You will be computing a dense eigendecomposition of size $(length(nodes)). If this is too large or runs too slowly, consider ]adding and `using` `ArnoldiMethod.jl`, which will load an extension for computing these prolates in quasilinear time." maxlog=1
@@ -294,12 +294,12 @@ function prolate_minimal_m(p::Prolate2D)
 end
 
 # TODO (cg 2025/05/22 13:49): make this a multitaper like in 1D.
-function linsys_rhs(p::Prolate2D, wgrid::AbstractVector{SVector{2,Float64}})
+function linsys_rhs(p::Prolate2D, wgrid::AbstractVector{SVector{2,Float64}}; kwargs...)
   # Step 1: compute the prolate function on a quadrature grid that resolves the
   # bandwidth.
   corder = Int(ceil(max(32, prolate_minimal_m(p))))
   (cnodes, cweights) = glquadrule((corder, corder), p.a, p.b)
-  cslep = prolate_fromrule(p.bandwidth, cnodes, cweights)
+  cslep = prolate_fromrule(p.bandwidth, cnodes, cweights; kwargs...)
   # Step 2: obtain the prolate on a finer grid that can resolve the actual
   # oscillations of wgrid.
   Ωl1  = 4*Int(ceil(maximum(x->norm(x,1), wgrid)))
@@ -390,7 +390,6 @@ function gridded_nyquist_gpss(pts, bandwidth::Float64; kwargs...)
 end
 
 
-#=
 #
 # Tensor product of two 1D windows:
 #
@@ -428,4 +427,4 @@ function default_Ω(pts::Vector{SVector{2,Float64}}, sp::TensorProduct2DWindow)
   Ω  = sqrt(mΩ)/2
   (Ω, Ω)
 end
-=#
+

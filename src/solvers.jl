@@ -139,31 +139,10 @@ function krylov_preconditioner!(pts_sa::Vector{SVector{1,Float64}}, Ω,
   (true, Mf)
 end
 
-struct OfflobeControl
-  F::NUFFT3
-  Fwbuf::Vector{ComplexF64}
-  rhs::Vector{ComplexF64}
-  ixs::Vector{Int64}
-  flat_tol::Float64
-  rtol::Float64
-end
-
-function (olc::OfflobeControl)(ws)
-  mul!(olc.Fwbuf, olc.F, ws.x)
-  should_fail = false
-  @show (abs(olc.Fwbuf[end]), max(olc.flat_tol, olc.rtol*abs(olc.rhs[end])))
-  for ix in olc.ixs
-    abs_solved  = abs(olc.Fwbuf[ix])
-    abs_should  = max(olc.flat_tol, olc.rtol*abs(olc.rhs[ix]))
-    abs_solved > abs_should && return false
-  end
-  true
-end
-
-function solve_linsys(pts, win, Ω, solver::KrylovSolver; verbose=false)
+function solve_linsys(pts, win, Ω, solver::KrylovSolver; verbose=false, kwargs...)
   linsys_Ω       = Ω.*solver.inflation
   (wgrid, glwts) = glquadrule(krylov_nquad(pts, win), .-linsys_Ω, linsys_Ω)
-  rhs            = linsys_rhs(win, wgrid)
+  rhs            = linsys_rhs(win, wgrid; kwargs...)
   pts_sa         = static_points(pts)
   wgrid_sa       = static_points(wgrid)
   kernel         = gen_kernel(solver, pts_sa, linsys_Ω)
@@ -171,17 +150,10 @@ function solve_linsys(pts, win, Ω, solver::KrylovSolver; verbose=false)
   (_ldiv, pre)   = krylov_preconditioner!(pts_sa, linsys_Ω, solver; verbose=verbose)
   DF             = PreNUFFT3(collect(wgrid_sa), pts_sa, -1, D)
   F              = DF.F 
-  #=
-  offlobe_ixs    = findall(w->norm(w) > bandwidth(win), wgrid)
-  Fwbuf          = zeros(ComplexF64, length(wgrid_sa))
-  =#
   vrb            = verbose ? 10 : 0
   wts = map(eachcol(rhs)) do rhsj
     real(lsmr(DF, D*rhsj, N=pre, verbose=vrb, etol=0.0, axtol=0.0, atol=solver.atol, 
               btol=0.0, rtol=solver.rtol, conlim=Inf, ldiv=_ldiv, itmax=solver.maxit)[1])
-    #olc = OfflobeControl(F, Fwbuf, collect(rhsj), offlobe_ixs, sqrt(eps()), 2.0)
-    #lsmr(DF, D*rhsj, N=pre, verbose=vrb, etol=0.0, axtol=0.0, atol=0.0, 
-    #     btol=0.0, rtol=0.0, conlim=Inf, ldiv=_ldiv, itmax=solver.maxit, callback=olc)[1]
   end
   (wgrid, glwts) = glquadrule(krylov_nquad(pts, win), .-Ω, Ω)
   wgrid_sa       = static_points(wgrid)
