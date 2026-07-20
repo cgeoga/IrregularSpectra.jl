@@ -127,8 +127,7 @@ end
 function window_quadrature_weights(pts, g::GPSS; kwargs...)
   (is_gappy_grid, Ω) = gappy_grid_Ω(pts, info=false)
   is_gappy_grid || error("GPSS weights are only supported for points on a gappy lattice for now.")
-  (Ω, gridded_nyquist_gpss(pts, g.bandwidth; concentration_tol=g.concentration_tol,
-                           max_tapers=g.max_tapers))
+  (Ω, gridded_nyquist_gpss(pts, g.bandwidth; concentration_tol=g.concentration_tol))
 end
 
 struct SpectralDensityEstimator{O,F,W}

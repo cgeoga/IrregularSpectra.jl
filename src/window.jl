@@ -349,7 +349,7 @@ end
 #
 
 """
-`GPSS(bandwidth, concentration_tol=1e-8, max_tapers=5)`
+`GPSS(bandwidth, concentration_tol=1e-8)`
 
 Specify a GPSS window to be used in weight computation. Note that the bandwidth
 is **not** normalized, so if you have non-unit sampling you will need to
@@ -357,8 +357,8 @@ manually account for that (please open an issue if that is a problem for you).
 `concentration_tol` specifies how much (normalized) mass of the spectral window
 you allow to be outside of [-W, W] for bandwidth W.
 
-    GPSS(pts::Vector{Float64};
-         concentration_tol=1e-8, max_tapers=5)
+
+`GPSS(pts::Vector{Float64}, bandwidth; concentration_tol=1e-8)`
 
 A second method for constructing a GPSS window that uses a simple heuristic for
 automatic bandwidth selection.
@@ -366,28 +366,55 @@ automatic bandwidth selection.
 struct GPSS
   bandwidth::Float64
   concentration_tol::Float64
-  max_tapers
 end
 
-GPSS(bandwidth::Float64) = GPSS(bandwidth, 1e-8, 5)
+GPSS(bandwidth::Float64) = GPSS(bandwidth, 1e-4)
 
-function GPSS(pts::Vector{Float64}; concentration_tol=1e-8, max_tapers=5)
+function GPSS(pts::Vector{Float64}, bandwidth; concentration_tol=1e-4)
   (is_gridded, gridded_Ω) = gappy_grid_Ω(pts, info=false)
   is_gridded || error("This GPSS object at present only supports data on a gappy lattice.")
-  (min_pt, max_pt) = extrema(pts)
-  bandwidth = 6/(max_pt - min_pt)
-  GPSS(bandwidth, concentration_tol, max_tapers)
+  GPSS(bandwidth, concentration_tol)
 end
 
 bandwidth(gpss::GPSS) = gpss.bandwidth
 
-function _fast_gridded_nyquist_gpss end
-
-function gridded_nyquist_gpss(pts, bandwidth::Float64; kwargs...)
-  if iszero(length(methods(_fast_gridded_nyquist_gpss)))
-    error("Please `]add` and `using ArnoldiMethod.jl` to load the extension for GPSS routines.")
+function gridded_nyquist_gpss(times::Vector{Float64}, bw; 
+                              concentration_tol=1e-4, kwargs...)
+  # Dominant eigenvectors:
+  fs   = FastBandlimited(times, times, ω->1.0, bw)
+  gpss = lanczos_dominant_eig(fs, 1-concentration_tol, 1e-10; kwargs...)[2]
+  # L^2 normalize:
+  Ω   = inv(minimum(abs, diff(times)))/2
+  (wgrid, glwts) = IrregularSpectra.glquadrule(4*length(times), -Ω, Ω)
+  F   = IrregularSpectra.NUFFT3(wgrid.*(2*pi), times, -1)
+  tmp = zeros(ComplexF64, length(wgrid))
+  for j in 1:size(gpss, 2)
+    wtsj = complex(gpss[:,j])
+    mul!(tmp, F, wtsj)
+    l2norm = sqrt(dot(glwts, abs2.(tmp)))
+    view(gpss, :, j) ./= l2norm
   end
-  _fast_gridded_nyquist_gpss(pts, bandwidth; kwargs...)
+  gpss
+end
+
+function gridded_nyquist_gpss(locations::Vector{SVector{2,Float64}}, bw;
+                              concentration_tol=1e-4, kwargs...)
+  # Dominant eigenvectors:
+  fs  = FastBandlimited(locations, locations, Ω->1.0, bw; polar=true)
+  gpss = lanczos_dominant_eig(fs, 1-concentration_tol, 1e-10; kwargs...)[2]
+  # L^2 normalize:
+  Ω  = (get_nyquist_j(locations, 1), get_nyquist_j(locations, 2))
+  nq = 4*Int(ceil(sqrt(length(locations))))
+  (wgrid, glwts) = IrregularSpectra.glquadrule((nq, nq), .-Ω, Ω)
+  F   = IrregularSpectra.NUFFT3(wgrid.*(2*pi), locations, -1)
+  tmp = zeros(ComplexF64, length(wgrid))
+  for j in 1:size(gpss, 2)
+    wtsj = complex(gpss[:,j])
+    mul!(tmp, F, wtsj)
+    l2norm = sqrt(dot(glwts, abs2.(tmp)))
+    view(gpss, :, j) ./= l2norm
+  end
+  gpss
 end
 
 

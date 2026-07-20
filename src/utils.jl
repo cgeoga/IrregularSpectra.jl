@@ -286,3 +286,9 @@ function gappy_grid_Ω(pts::Vector{SVector{D,Float64}}; info=true) where{D}
   (is_gridded, ntuple(j->results[j][2], D))
 end
 
+function get_nyquist_j(locations::Vector{SVector{2,Float64}}, j)
+  xj  = getindex.(locations, 1)
+  xjs = sort(unique(xj))
+  inv(xjs[2] - xjs[1])/2
+end
+
