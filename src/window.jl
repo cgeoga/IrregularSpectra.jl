@@ -368,9 +368,9 @@ struct GPSS
   concentration_tol::Float64
 end
 
-GPSS(bandwidth::Float64) = GPSS(bandwidth, 1e-4)
+GPSS(bandwidth::Float64) = GPSS(bandwidth, 1e-5)
 
-function GPSS(pts::Vector{Float64}, bandwidth; concentration_tol=1e-4)
+function GPSS(pts::Vector{Float64}, bandwidth; concentration_tol=1e-5)
   (is_gridded, gridded_Ω) = gappy_grid_Ω(pts, info=false)
   is_gridded || error("This GPSS object at present only supports data on a gappy lattice.")
   GPSS(bandwidth, concentration_tol)
@@ -379,7 +379,7 @@ end
 bandwidth(gpss::GPSS) = gpss.bandwidth
 
 function gridded_nyquist_gpss(times::Vector{Float64}, bw; 
-                              concentration_tol=1e-4, kwargs...)
+                              concentration_tol=1e-5, kwargs...)
   # Dominant eigenvectors:
   fs   = FastBandlimited(times, times, ω->1.0, bw)
   gpss = lanczos_dominant_eig(fs, 1-concentration_tol, 1e-10; kwargs...)[2]
@@ -398,7 +398,7 @@ function gridded_nyquist_gpss(times::Vector{Float64}, bw;
 end
 
 function gridded_nyquist_gpss(locations::Vector{SVector{2,Float64}}, bw;
-                              concentration_tol=1e-4, kwargs...)
+                              concentration_tol=1e-5, kwargs...)
   # Dominant eigenvectors:
   fs  = FastBandlimited(locations, locations, Ω->1.0, bw; polar=true)
   gpss = lanczos_dominant_eig(fs, 1-concentration_tol, 1e-10; kwargs...)[2]
