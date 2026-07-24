@@ -1,6 +1,6 @@
 
 using IrregularSpectra, StaticArrays, Printf
-#using NearestNeighbors # bring in this weakdep for the large-data methods
+using NearestNeighbors # bring in this weakdep for the large-data methods
 
 # Kernel included in the package for convenience.
 kernel(x,y) = IrregularSpectra.matern_cov(x-y, (1.0, 0.05, 1.75))
@@ -11,15 +11,12 @@ pts  = rand(SVector{2,Float64}, n)
 sims = IrregularSpectra.simulate_process(pts, kernel, 500)
 
 # Compute the estimator, which we'll do at just a few points for demonstration:
-window = Prolate2D(4.0,         # (half-)bandwidth 
-                   (0.0, 0.0),  # lower bounds of rectangle
-                   (1.0, 1.0))  # upper bounds of rectangle
-est    = estimate_sdf(pts, sims, window)
-
-#= Or if your dataset is large, compute est like this insetad:
+bw     = shannon_bandwidth(64.0, (0.0, 0.0), (1.0, 1.0)) # should give ~3 good tapers with defaults
+window = Prolate2D(bw,           # (half-)bandwidth 
+                   (0.0, 0.0),   # lower bounds of rectangle
+                   (1.0, 1.0))   # upper bounds of rectangle
 solver = KrylovSolver(SparsePreconditioner(1e-12))
-est    = estimate_sdf(pts, sims, window; solver=solver)
-=#
+est    = estimate_sdf(pts, sims, window; Ω=(20.0, 20.0))
 
 # Unlike in the 1D case, the window-induced bias in 2+D can be very strong. So
 # you shouldn't expect the mean of even many many samples to be close to the

@@ -177,8 +177,13 @@ function Prolate1D(intervals::Vector{NTuple{2,Float64}};
   Prolate1D(bandwidth, intervals)
 end
 
-
 slepkernel(xmy::Float64, bw::Float64) = sinc(2*bw*xmy)
+
+function slepkernel(xmy::SVector{2,Float64}, bw::Float64)
+  nx = 2*pi*bw*norm(xmy)
+  iszero(nx) && return 0.5
+  Bessels.besselj1(nx)/nx
+end
 
 function linsys_rhs(p::Prolate1D, wgrid::AbstractVector{Float64})
   # Step 1: compute the prolate on a coarse grid that just resolves the Nyquist
@@ -280,13 +285,11 @@ struct Prolate2D <: ImplicitWindow
   b::NTuple{2,Float64}
 end
 
-bandwidth(p2d::Prolate2D) = p2d.bandwidth
-
-function slepkernel(xmy::SVector{2,Float64}, bw::Float64)
-  nx = 2*pi*bw*norm(xmy)
-  iszero(nx) && return 0.5
-  Bessels.besselj1(nx)/nx
+function shannon_bandwidth(shannon, a::NTuple{2,Float64}, b::NTuple{2,Float64})
+  sqrt(shannon/(pi*(b[1]-a[1])*(b[2]-a[2])))
 end
+
+bandwidth(p2d::Prolate2D) = p2d.bandwidth
 
 function prolate_minimal_m(p::Prolate2D)
   m1 = 2*abs(p.b[1] - p.a[1])*4*p.bandwidth
