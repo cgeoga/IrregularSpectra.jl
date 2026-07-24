@@ -202,13 +202,13 @@ end
 
 function fast_slepian_operator(x1v::Vector{Float64}, x2v::Vector{Float64}, 
                                bandwidth)
-  FastBandlimited(x1v, x2v, ω->inv(2*bandwidth), bandwidth)
+  FastBandlimited(x1v, x2v, ω->1.0, bandwidth)
 end
 
 function fast_slepian_operator(x1v::Vector{SVector{2,Float64}}, 
                                x2v::Vector{SVector{2,Float64}}, 
                                bandwidth)
-  FastBandlimited(x1v, x2v, ω->inv(pi*bandwidth^2)/2, bandwidth; polar=true)
+  FastBandlimited(x1v, x2v, ω->1.0, bandwidth; polar=true)
 end
 
 function fast_slepian_operator_rule(nodes, weights, bandwidth)
@@ -244,7 +244,7 @@ function _dense_prolate_fromrule(w, nodes, weights; concentration_tol=1e-8)
 end
 
 function prolate_fromrule(w, nodes, weights; concentration_tol=1e-8, kwargs...)
-  (M, Dw)  = fast_slepian_operator_rule(nodes, weights, w)
+  (M, Dw)  = fast_slepian_operator_rule(nodes, weights, w) 
   prolates = lanczos_dominant_eig(M, 1-concentration_tol, 1e-13; kwargs...)[2]
   ldiv!(Dw, prolates)
   for sj in eachcol(prolates)
