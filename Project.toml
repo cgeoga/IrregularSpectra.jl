@@ -27,7 +27,7 @@ IrregularSpectraNearestNeighborsExt = "NearestNeighbors"
 IrregularSpectraVecchiaExt = "Vecchia"
 
 [compat]
-BandlimitedOperators = "0.1.9"
+BandlimitedOperators = "0.2.0"
 Bessels = "0.2"
 HMatrices = "0.2"
 Krylov = "0.10"
