@@ -297,7 +297,6 @@ function prolate_minimal_m(p::Prolate2D)
   max(m1, m2)
 end
 
-# TODO (cg 2025/05/22 13:49): make this a multitaper like in 1D.
 function linsys_rhs(p::Prolate2D, wgrid::AbstractVector{SVector{2,Float64}}; kwargs...)
   # Step 1: compute the prolate function on a quadrature grid that resolves the
   # bandwidth.
@@ -306,7 +305,8 @@ function linsys_rhs(p::Prolate2D, wgrid::AbstractVector{SVector{2,Float64}}; kwa
   cslep = prolate_fromrule(p.bandwidth, cnodes, cweights; kwargs...)
   # Step 2: obtain the prolate on a finer grid that can resolve the actual
   # oscillations of wgrid.
-  Ωl1  = 4*Int(ceil(maximum(x->norm(x,1), wgrid)))
+  domain_size = maximum(p.b .- p.a)
+  Ωl1  = 4*Int(ceil(maximum(x->norm(x,1), wgrid)*domain_size))
   (nodes, weights) = glquadrule((Ωl1, Ωl1), p.a, p.b)
   slep = prolate_interpolate(p.bandwidth, cnodes, cweights, cslep, nodes, weights)
   # Step 3: compute their CFT.
@@ -314,15 +314,6 @@ function linsys_rhs(p::Prolate2D, wgrid::AbstractVector{SVector{2,Float64}}; kwa
   spectra = Matrix{ComplexF64}(undef, length(wgrid), size(cslep, 2))
   mul!(spectra, nufftop, complex(weights.*slep))
 end
-
-#=
-function default_Ω(pts::Vector{SVector{2,Float64}}, p::Prolate2D)
-  Ω1 = default_Ω(getindex.(pts, 1), Kaiser(p.bandwidth, a=p.a[1], b=p.b[1]))
-  Ω2 = default_Ω(getindex.(pts, 2), Kaiser(p.bandwidth, a=p.a[2], b=p.b[2]))
-  Ω  = sqrt(min(Ω1, Ω2))/2
-  (Ω, Ω)
-end
-=#
 
 #
 # QuadratureRuleProlate: a prolate computed directly from a quadrature rule,

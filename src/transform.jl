@@ -20,11 +20,12 @@ end
 function default_Ω(pts::Vector{SVector{2,Float64}}, g; check=true)
   (is_gridded, gridded_Ω) = gappy_grid_Ω(pts)
   is_gridded && return gridded_Ω
-  p1 = sort(unique(getindex.(pts, 1)))
-  p2 = sort(unique(getindex.(pts, 2)))
-  Ω1 = length(pts)/(4*(p1[end]-p1[1]))
-  Ω2 = length(pts)/(4*(p2[end]-p2[1]))
-  Ω  = 0.75*sqrt(min(Ω1, Ω2)) # TODO (cg 2026/07/20 12:49): dial this in better.
+  p1 = getindex.(pts, 1)
+  p2 = getindex.(pts, 2)
+  Lx = maximum(p1) - minimum(p1)
+  Ly = maximum(p2) - minimum(p2)
+  density = length(pts)/(Lx*Ly)
+  Ω = 0.65*sqrt(density)
   (Ω, Ω)
 end
 
@@ -172,7 +173,7 @@ end
 struct CrossSpectrumEstimator{O,F,W1,W2}
   sdf1::SpectralDensityEstimator{O,F,W1}
   sdf2::SpectralDensityEstimator{O,F,W2}
-  cross_sdf::Vector{ComplexF64} # Restored to ComplexF64
+  cross_sdf::Vector{ComplexF64}
   msqcoherence::Vector{Float64}
   freq::Vector{F}
 end
@@ -192,7 +193,7 @@ function estimate_cross_sdf(pts1, data1, sdf1::SpectralDensityEstimator{O,F,W1},
     @info "Only using $ndat replicates out of $(max(ndat1, ndat2))..." 
   end
   if ntap < max(ntap1, ntap2)
-    @info "Only using $ntap weight vectors out of $(max(ntap1, ntap2)), and assuming that the _last_ indices of the weight matrix correspond to the most concentrated..." 
+    @info "Only using $ntap weight vectors out of $(max(ntap1, ntap2)), and assuming that the _first_ columns of the weight matrices correspond to the most concentrated..." 
   end
   ixs   = vec(collect(Iterators.product(1:ndat, 1:ntap)))
   n_ixs = length(ixs)
@@ -201,16 +202,16 @@ function estimate_cross_sdf(pts1, data1, sdf1::SpectralDensityEstimator{O,F,W1},
   marginal_2 = zeros(Float64,    length(frequencies))
   cross_12   = zeros(ComplexF64, length(frequencies)) 
   foreach(ixs) do (ix_j, win_j)
-    mul!(tmp1, fs1, data1[:,ix_j].*complex(sdf1.wts[:,ntap1-win_j+1])) 
-    mul!(tmp2, fs2, data2[:,ix_j].*complex(sdf2.wts[:,ntap2-win_j+1])) 
+    mul!(tmp1, fs1, data1[:,ix_j].*complex(sdf1.wts[:,win_j])) 
+    mul!(tmp2, fs2, data2[:,ix_j].*complex(sdf2.wts[:,win_j])) 
     marginal_1 .+= abs2.(tmp1)
     marginal_2 .+= abs2.(tmp2)
-    cross_12   .+= tmp1 .* conj.(tmp2)
+    cross_12   .+= tmp1.*conj.(tmp2)
   end
   marginal_1 ./= n_ixs
   marginal_2 ./= n_ixs
   cross_12   ./= n_ixs
-  coh12 = abs2.(cross_12) ./ (marginal_1 .* marginal_2)
+  coh12 = abs2.(cross_12) ./ (marginal_1.*marginal_2)
   CrossSpectrumEstimator(sdf1, sdf2, cross_12, coh12, frequencies)
 end
 
