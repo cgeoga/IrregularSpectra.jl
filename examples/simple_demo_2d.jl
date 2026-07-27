@@ -1,11 +1,15 @@
 
 using IrregularSpectra, StaticArrays, Printf
-using NearestNeighbors # bring in this weakdep for the large-data methods
+#using NearestNeighbors # bring in this weakdep for the large-data methods
 
 # Kernel included in the package for convenience.
 kernel(x,y) = IrregularSpectra.matern_cov(x-y, (1.0, 0.05, 1.75))
 
-# Generate n uniform points on [0,1]:
+# Generate n uniform points on [0,1]. This n is pretty small so that the code
+# will run fast, but keep in mind the reality that you may need a _lot_ of data
+# to get a good estimator in 2D that is not dominated by the window bandwidth or
+# with serious super-Nyquist aliasing bias. I would _not_ use this method for
+# this small a number of data points in a real application.
 n    = 5000
 pts  = rand(SVector{2,Float64}, n)
 sims = IrregularSpectra.simulate_process(pts, kernel, 500)
@@ -15,8 +19,8 @@ bw     = shannon_bandwidth(64.0, (0.0, 0.0), (1.0, 1.0)) # should give ~3 good t
 window = Prolate2D(bw,           # (half-)bandwidth 
                    (0.0, 0.0),   # lower bounds of rectangle
                    (1.0, 1.0))   # upper bounds of rectangle
-solver = KrylovSolver(SparsePreconditioner(1e-12))
-est    = estimate_sdf(pts, sims, window; Ω=(20.0, 20.0))
+#solver = KrylovSolver(SparsePreconditioner(1e-12))       # if you load NearestNeighbors, you can...
+est    = estimate_sdf(pts, sims, window)#; solver=solver) # ...provide this kwarg to go faster for big data.
 
 # Unlike in the 1D case, the window-induced bias in 2+D can be very strong. So
 # you shouldn't expect the mean of even many many samples to be close to the
