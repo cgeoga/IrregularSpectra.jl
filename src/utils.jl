@@ -1,4 +1,18 @@
 
+function shannon_bandwidth(shannon, a::NTuple{2,Float64}, b::NTuple{2,Float64})
+  sqrt(shannon/(pi*(b[1]-a[1])*(b[2]-a[2])))
+end
+
+function shannon_bandwidth(shannon, a::Float64, b::Float64)
+  shannon/(2*(b-a))
+end
+
+function shannon_bandwidth(shannon, ivs::Vector{NTuple{2,Float64}})
+  @info "For a list of 1D intervals, this function returns the Shannon bandwidth for the _longest_ interval." maxlog=1
+  max_interval = findmax(x->x[2] - x[1], ivs)[2]
+  shannon_bandwidth(shannon, ivs[max_interval])
+end
+
 # A dense NUDFT matrix. 
 function nudftmatrix(s1, s2, sgn; T=Float64)
   sgn in (-1.0, 1.0) || throw(error("sign should be -1.0 or 1.0! You provided $sgn."))

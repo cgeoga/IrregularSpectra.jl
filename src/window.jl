@@ -177,6 +177,11 @@ function Prolate1D(intervals::Vector{NTuple{2,Float64}};
   Prolate1D(bandwidth, intervals)
 end
 
+function Prolate1D(ab::NTuple{2,Float64};
+                   bandwidth=default_prolate_bandwidth([ab]))
+  Prolate1D([ab]; bandwidth)
+end
+
 slepkernel(xmy::Float64, bw::Float64) = sinc(2*bw*xmy)
 
 function slepkernel(xmy::SVector{2,Float64}, bw::Float64)
@@ -283,10 +288,6 @@ struct Prolate2D <: ImplicitWindow
   bandwidth::Float64   # this is a _radius_.
   a::NTuple{2,Float64}
   b::NTuple{2,Float64}
-end
-
-function shannon_bandwidth(shannon, a::NTuple{2,Float64}, b::NTuple{2,Float64})
-  sqrt(shannon/(pi*(b[1]-a[1])*(b[2]-a[2])))
 end
 
 bandwidth(p2d::Prolate2D) = p2d.bandwidth
